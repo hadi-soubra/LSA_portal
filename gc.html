@@ -142,10 +142,20 @@
       </button>
 
       <span class="nav-section-label" style="margin-top:0.5rem;">Communications</span>
-      <button class="nav-item" onclick="showSection('comms', this)">
-        <span class="nav-icon">📡</span> Communications
-        <span class="nav-badge" id="req-badge" style="display:none;">0</span>
+
+      <span class="nav-group-label">📤 Outbox</span>
+      <button class="nav-sub-item" onclick="showSection('send-request', this)">Send Request</button>
+      <button class="nav-sub-item" onclick="showSection('send-report', this)">Send Report</button>
+
+      <span class="nav-group-label">📥 Inbox</span>
+      <button class="nav-sub-item" onclick="showSection('inbox-requests', this)">
+        Requests <span class="nav-badge" id="inbox-req-badge" style="display:none;">0</span>
       </button>
+      <button class="nav-sub-item" onclick="showSection('inbox-reports', this)">Reports</button>
+
+      <span class="nav-group-label">🗂 Tracker</span>
+      <button class="nav-sub-item" onclick="showSection('tracker-requests', this)">Requests</button>
+      <button class="nav-sub-item" onclick="showSection('tracker-reports', this)">Reports</button>
     </nav>
 
     <div class="sidebar-footer">
@@ -169,7 +179,7 @@
         <p id="section-subtitle">GC overview</p>
       </div>
       <div class="header-actions">
-        <button class="btn btn-sm btn-primary" onclick="goToCommsTab('tab-approve-reqs')">
+        <button class="btn btn-sm btn-primary" onclick="showSection('inbox-requests', null)">
           📝 Requests <span id="header-badge" style="background:rgba(255,255,255,0.25);border-radius:99px;padding:0 6px;margin-left:4px;display:none;">0</span>
         </button>
         <div class="header-avatar" id="header-avatar">?</div>
@@ -208,7 +218,7 @@
           <div class="card">
             <div class="card-header">
               <span class="card-title">⏳ Pending Event Requests</span>
-              <button class="btn btn-sm btn-primary" onclick="goToCommsTab('tab-approve-reqs')">Review All</button>
+              <button class="btn btn-sm btn-primary" onclick="showSection('inbox-requests', null)">Review All</button>
             </div>
             <div class="activity-list" id="home-pending-events">
               <div class="text-muted text-sm" style="padding:1rem;">Loading…</div>
@@ -218,7 +228,7 @@
           <div class="card">
             <div class="card-header">
               <span class="card-title">📋 Pending Reports</span>
-              <button class="btn btn-sm btn-secondary" onclick="goToCommsTab('tab-approve-rpts')">View All</button>
+              <button class="btn btn-sm btn-secondary" onclick="showSection('inbox-reports', null)">View All</button>
             </div>
             <div class="activity-list" id="home-pending-reports">
               <div class="text-muted text-sm" style="padding:1rem;">Loading…</div>
@@ -268,144 +278,126 @@
         </div>
       </div>
 
-      <!-- ===== COMMUNICATIONS ===== -->
-      <div class="section" id="sec-comms">
-        <div class="page-header">
-          <h3>Communications</h3>
-          <p>Send, receive and track</p>
+      <!-- ===== SEND REQUEST ===== -->
+      <div class="section" id="sec-send-request">
+        <div class="page-header"><h3>Send Request</h3><p>Submit an event request for EC approval</p></div>
+        <div class="card" style="margin-bottom:1.5rem;">
+          <div class="card-header"><span class="card-title">📤 New Event Request</span></div>
+          <div class="card-body">
+            <div id="cr-alert"></div>
+            <div class="form-group"><label class="form-label">Event Title *</label><input class="form-control" type="text" id="cr-title" placeholder="Enter event title" /></div>
+            <div class="form-group"><label class="form-label">Description</label><textarea class="form-control" id="cr-desc" rows="2" placeholder="Describe the event…"></textarea></div>
+            <div class="form-row">
+              <div><label class="form-label">Start Date *</label><input class="form-control" type="date" id="cr-date" /></div>
+              <div><label class="form-label">End Date</label><input class="form-control" type="date" id="cr-date-end" /></div>
+            </div>
+            <div class="form-group"><label class="form-label">Location *</label><input class="form-control" type="text" id="cr-location" placeholder="Event location" /></div>
+            <div class="form-group"><label class="form-label">Expected Participants</label><input class="form-control" type="number" id="cr-participants" min="1" /></div>
+            <div class="form-group">
+              <label class="form-label">Required Approval Level *</label>
+              <select class="form-control" id="cr-approval-level">
+                <option value="ec">EC Level (National)</option>
+              </select>
+            </div>
+            <div class="form-group"><label class="form-label">Notes</label><textarea class="form-control" id="cr-notes" rows="2" placeholder="Additional notes…"></textarea></div>
+            <div style="display:flex;gap:0.75rem;">
+              <button class="btn btn-primary" onclick="submitCommsRequest()">📤 Submit Request</button>
+              <button class="btn btn-secondary" onclick="clearCommsRequestForm()">Clear</button>
+            </div>
+          </div>
         </div>
+        <h4 style="font-size:0.95rem;color:var(--text-secondary);margin-bottom:1rem;">Sent Requests History</h4>
+        <div style="display:flex;flex-direction:column;gap:0.75rem;" id="sent-requests-list"><div class="text-muted text-sm">Loading…</div></div>
+      </div>
 
+      <!-- ===== SEND REPORT ===== -->
+      <div class="section" id="sec-send-report">
+        <div class="page-header"><h3>Send Report</h3><p>Submit a report to EC</p></div>
+        <div class="card" style="margin-bottom:1.5rem;">
+          <div class="card-header"><span class="card-title">📊 New Report</span></div>
+          <div class="card-body">
+            <div id="crpt-alert"></div>
+            <div class="form-group">
+              <label class="form-label">Activity (Approved Request) *</label>
+              <select class="form-control" id="crpt-request"><option value="">— Select an approved activity —</option></select>
+              <p class="text-muted text-sm" id="crpt-no-requests" style="display:none;margin-top:0.4rem;">No approved activities without a report yet.</p>
+            </div>
+            <div class="form-group"><label class="form-label">Report Title *</label><input class="form-control" type="text" id="crpt-title" placeholder="e.g., GC Monthly Report – April 2025" /></div>
+            <div class="form-group"><label class="form-label">Report Body *</label><textarea class="form-control" id="crpt-body" rows="8" placeholder="Write your full report here…"></textarea></div>
+            <div class="form-group">
+              <label class="form-label">Required Approval Level *</label>
+              <select class="form-control" id="crpt-approval-level">
+                <option value="ec">EC Level (National)</option>
+              </select>
+            </div>
+            <div style="display:flex;gap:0.75rem;">
+              <button class="btn btn-primary" onclick="submitCommsReport()">📤 Submit Report</button>
+              <button class="btn btn-secondary" onclick="clearCommsReportForm()">Clear</button>
+            </div>
+          </div>
+        </div>
+        <h4 style="font-size:0.95rem;color:var(--text-secondary);margin-bottom:1rem;">Sent Reports History</h4>
+        <div style="display:flex;flex-direction:column;gap:0.75rem;" id="sent-reports-list"><div class="text-muted text-sm">Loading…</div></div>
+      </div>
+
+      <!-- ===== INBOX — REQUESTS ===== -->
+      <div class="section" id="sec-inbox-requests">
+        <div class="page-header"><h3>Received Requests</h3><p>Review event requests from district commissioners</p></div>
         <div class="tab-bar">
-          <button class="tab-btn active" onclick="switchTab(this, 'tab-cr')">📤 Send Request</button>
-          <button class="tab-btn" onclick="switchTab(this, 'tab-crpt')">📊 Send Report</button>
-          <button class="tab-btn" onclick="switchTab(this, 'tab-ctracker')">🗂 Tracker</button>
-          <button class="tab-btn" onclick="switchTab(this, 'tab-approve-reqs')">✅ Approve Requests <span class="nav-badge" id="approve-reqs-badge" style="display:none;background:var(--primary);color:#fff;"></span></button>
-          <button class="tab-btn" onclick="switchTab(this, 'tab-approve-rpts')">📋 Approve Reports</button>
+          <button class="tab-btn active" onclick="switchTab(this, 'tab-inbox-req-pending')">⏳ Pending <span class="nav-badge" id="inbox-pending-badge" style="display:none;position:static;margin-left:4px;"></span></button>
+          <button class="tab-btn" onclick="switchTab(this, 'tab-inbox-req-history')">📋 History</button>
         </div>
+        <div class="tab-pane active" id="tab-inbox-req-pending">
+          <div style="display:flex;flex-direction:column;gap:1rem;" id="inbox-req-pending-list"><div class="text-muted text-sm">Loading…</div></div>
+        </div>
+        <div class="tab-pane" id="tab-inbox-req-history">
+          <div style="display:flex;gap:0.75rem;flex-wrap:wrap;margin-bottom:1rem;">
+            <select class="form-control" id="hist-req-district-filter" onchange="filterInboxReqHistory()" style="max-width:200px;"><option value="">All Districts</option></select>
+          </div>
+          <div style="display:flex;flex-direction:column;gap:0.75rem;" id="inbox-req-history-list"><div class="text-muted text-sm">Loading…</div></div>
+        </div>
+      </div>
 
-        <!-- Send Request -->
-        <div class="tab-pane active" id="tab-cr">
-          <div class="card">
-            <div class="card-header"><span class="card-title">📤 Send Request to EC</span></div>
-            <div class="card-body">
-              <div id="cr-alert"></div>
-              <div class="form-group">
-                <label class="form-label">Event Title *</label>
-                <input class="form-control" type="text" id="cr-title" placeholder="Enter event title" />
-              </div>
-              <div class="form-group">
-                <label class="form-label">Description</label>
-                <textarea class="form-control" id="cr-desc" rows="2" placeholder="Describe the event…"></textarea>
-              </div>
-              <div class="form-row">
-                <div>
-                  <label class="form-label">Start Date *</label>
-                  <input class="form-control" type="date" id="cr-date" />
-                </div>
-                <div>
-                  <label class="form-label">End Date</label>
-                  <input class="form-control" type="date" id="cr-date-end" />
-                </div>
-              </div>
-              <div class="form-group">
-                <label class="form-label">Location *</label>
-                <input class="form-control" type="text" id="cr-location" placeholder="Event location" />
-              </div>
-              <div class="form-group">
-                <label class="form-label">Expected Participants</label>
-                <input class="form-control" type="number" id="cr-participants" min="1" />
-              </div>
-              <div class="form-group">
-                <label class="form-label">Required Approval Level *</label>
-                <select class="form-control" id="cr-approval-level">
-                  <option value="ec">EC Level (National)</option>
-                </select>
-              </div>
-              <div class="form-group">
-                <label class="form-label">Notes</label>
-                <textarea class="form-control" id="cr-notes" rows="2" placeholder="Additional notes…"></textarea>
-              </div>
-              <div style="display:flex;gap:0.75rem;margin-top:0.25rem;">
-                <button class="btn btn-primary" onclick="submitCommsRequest()">📤 Submit Request</button>
-                <button class="btn btn-secondary" onclick="clearCommsRequestForm()">Clear</button>
-              </div>
-            </div>
-          </div>
+      <!-- ===== INBOX — REPORTS ===== -->
+      <div class="section" id="sec-inbox-reports">
+        <div class="page-header"><h3>Received Reports</h3><p>Review and forward reports from district commissioners</p></div>
+        <div class="tab-bar">
+          <button class="tab-btn active" onclick="switchTab(this, 'tab-inbox-rpt-pending')">⏳ Pending</button>
+          <button class="tab-btn" onclick="switchTab(this, 'tab-inbox-rpt-history')">📋 History</button>
         </div>
+        <div class="tab-pane active" id="tab-inbox-rpt-pending">
+          <div style="display:flex;flex-direction:column;gap:1rem;" id="inbox-rpt-pending-list"><div class="text-muted text-sm">Loading…</div></div>
+        </div>
+        <div class="tab-pane" id="tab-inbox-rpt-history">
+          <div style="display:flex;gap:0.75rem;flex-wrap:wrap;margin-bottom:1rem;">
+            <select class="form-control" id="hist-rpt-district-filter" onchange="filterInboxRptHistory()" style="max-width:200px;"><option value="">All Districts</option></select>
+          </div>
+          <div style="display:flex;flex-direction:column;gap:0.75rem;" id="inbox-rpt-history-list"><div class="text-muted text-sm">Loading…</div></div>
+        </div>
+      </div>
 
-        <!-- Send Report -->
-        <div class="tab-pane" id="tab-crpt">
-          <div class="card">
-            <div class="card-header"><span class="card-title">📊 Send Report to EC</span></div>
-            <div class="card-body">
-              <div id="crpt-alert"></div>
-              <div class="form-group">
-                <label class="form-label">Report Title *</label>
-                <input class="form-control" type="text" id="crpt-title" placeholder="e.g., GC Monthly Report – April 2024" />
-              </div>
-              <div class="form-group">
-                <label class="form-label">Report Body *</label>
-                <textarea class="form-control" id="crpt-body" rows="8" placeholder="Write your full report here…"></textarea>
-              </div>
-              <div style="display:flex;gap:0.75rem;margin-top:0.25rem;">
-                <button class="btn btn-primary" onclick="submitCommsReport()">📤 Submit Report</button>
-                <button class="btn btn-secondary" onclick="clearCommsReportForm()">Clear</button>
-              </div>
-            </div>
-          </div>
+      <!-- ===== TRACKER — REQUESTS ===== -->
+      <div class="section" id="sec-tracker-requests">
+        <div class="page-header"><h3>Request Tracker</h3><p>Track all your submitted event requests</p></div>
+        <div style="display:flex;gap:0.5rem;flex-wrap:wrap;margin-bottom:1rem;">
+          <button class="btn btn-sm btn-primary" onclick="setTrackerFilter('requests','all',this)">All</button>
+          <button class="btn btn-sm btn-secondary" onclick="setTrackerFilter('requests','pending',this)">Pending</button>
+          <button class="btn btn-sm btn-secondary" onclick="setTrackerFilter('requests','approved',this)">Approved</button>
+          <button class="btn btn-sm btn-secondary" onclick="setTrackerFilter('requests','rejected',this)">Rejected</button>
         </div>
+        <div style="display:flex;flex-direction:column;gap:0.75rem;" id="tracker-requests-list"><div class="text-muted text-sm">Loading…</div></div>
+      </div>
 
-        <!-- Tracker -->
-        <div class="tab-pane" id="tab-ctracker">
-          <div style="display:flex;flex-direction:column;gap:1rem;" id="comms-tracker-list">
-            <div class="text-muted text-sm">Loading…</div>
-          </div>
+      <!-- ===== TRACKER — REPORTS ===== -->
+      <div class="section" id="sec-tracker-reports">
+        <div class="page-header"><h3>Report Tracker</h3><p>Track all your submitted reports</p></div>
+        <div style="display:flex;gap:0.5rem;flex-wrap:wrap;margin-bottom:1rem;">
+          <button class="btn btn-sm btn-primary" onclick="setTrackerFilter('reports','all',this)">All</button>
+          <button class="btn btn-sm btn-secondary" onclick="setTrackerFilter('reports','pending',this)">Pending</button>
+          <button class="btn btn-sm btn-secondary" onclick="setTrackerFilter('reports','approved',this)">Approved</button>
+          <button class="btn btn-sm btn-secondary" onclick="setTrackerFilter('reports','rejected',this)">Rejected</button>
         </div>
-
-        <!-- Approve Requests -->
-        <div class="tab-pane" id="tab-approve-reqs">
-          <div class="page-header" style="padding:0 0 0.75rem;">
-            <h4 style="margin:0;">Event Requests</h4>
-            <p style="margin:0;">Review requests forwarded from district commissioners</p>
-          </div>
-          <div class="tab-bar">
-            <button class="tab-btn active" onclick="switchTab(this, 'tab-pending-reqs')">Pending</button>
-            <button class="tab-btn" onclick="switchTab(this, 'tab-all-reqs')">All Requests</button>
-          </div>
-          <div class="tab-pane active" id="tab-pending-reqs">
-            <div style="display:flex;flex-direction:column;gap:1rem;" id="pending-reqs-list">
-              <div class="text-muted text-sm">Loading…</div>
-            </div>
-          </div>
-          <div class="tab-pane" id="tab-all-reqs">
-            <div class="card">
-              <div class="table-wrapper">
-                <table>
-                  <thead>
-                    <tr>
-                      <th>Title</th><th>Submitted By</th><th>Location</th>
-                      <th>Date</th><th>Needs</th><th>Status</th><th>Actions</th>
-                    </tr>
-                  </thead>
-                  <tbody id="all-reqs-tbody">
-                    <tr><td colspan="7" class="text-muted text-sm" style="padding:1rem;">Loading…</td></tr>
-                  </tbody>
-                </table>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <!-- Approve Reports -->
-        <div class="tab-pane" id="tab-approve-rpts">
-          <div class="page-header" style="padding:0 0 0.75rem;">
-            <h4 style="margin:0;">Reports</h4>
-            <p style="margin:0;">Review and forward reports from districts</p>
-          </div>
-          <div style="display:flex;flex-direction:column;gap:1rem;" id="reports-list">
-            <div class="text-muted text-sm">Loading…</div>
-          </div>
-        </div>
+        <div style="display:flex;flex-direction:column;gap:0.75rem;" id="tracker-reports-list"><div class="text-muted text-sm">Loading…</div></div>
       </div>
 
     </div><!-- /content -->
@@ -458,7 +450,7 @@ let allDistrictsRef = [];
     document.getElementById('stat-reports').textContent = stats.pending_reports ?? 0;
     if (stats.pending_requests > 0) {
       const n = stats.pending_requests;
-      ['req-badge','header-badge','approve-reqs-badge'].forEach(id => {
+      ['header-badge'].forEach(id => {
         const el = document.getElementById(id);
         if (el) { el.textContent = n; el.style.display = ''; }
       });
@@ -609,8 +601,6 @@ async function modalConfirm() {
 // ── EVENT REQUESTS ─────────────────────────────────────────────────────────────
 async function loadEvents() {
   allEvents = await api('GET', '/api/events') || [];
-  renderPendingEvents();
-  renderAllEventsTable();
   renderHomePendingEvents();
 }
 
@@ -619,6 +609,7 @@ const STATUS_BADGE = {
   approved: 'badge-success',
   rejected: 'badge-danger',
 };
+const STATUS_BADGE_RPT = { pending: 'badge-warning', approved: 'badge-success', rejected: 'badge-danger' };
 
 function renderHomePendingEvents() {
   const el = document.getElementById('home-pending-events');
@@ -641,80 +632,17 @@ function renderHomePendingEvents() {
     </div>`).join('');
 }
 
-function renderPendingEvents() {
-  const el = document.getElementById('pending-reqs-list');
-  const pending = allEvents.filter(e => e.status === 'pending');
-  if (!pending.length) {
-    el.innerHTML = '<div class="card"><div class="card-body text-muted text-sm">No pending requests at GC level.</div></div>';
-    return;
-  }
-  el.innerHTML = pending.map(e => `
-    <div class="card">
-      <div class="card-body">
-        <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:1rem;margin-bottom:0.75rem;">
-          <div>
-            <div class="font-semibold" style="font-size:1rem;">${escHtml(e.title)}</div>
-            <div class="text-muted text-sm mt-1">
-              Submitted by <strong>${escHtml(e.submitter_name || '—')}</strong>
-              ${e.submitter_color ? `· <span style="text-transform:capitalize;">${e.submitter_color} branch</span>` : ''}
-              ${e.location ? '· 📍 ' + escHtml(e.location) : ''}
-              ${e.start_date ? '· ' + e.start_date : ''}
-              ${e.participants ? '· ' + e.participants + ' participants' : ''}
-            </div>
-          </div>
-          <span class="badge badge-warning">Pending</span>
-        </div>
-        ${e.description ? `<p class="text-sm" style="color:var(--text-secondary);margin-bottom:0.75rem;">${escHtml(e.description)}</p>` : ''}
-        <div class="flex gap-2 flex-wrap" style="margin-bottom:0.75rem;">
-          <span class="badge badge-neutral">Needs ${e.required_approval_level.toUpperCase()} approval</span>
-          <span class="badge badge-neutral">Currently at: ${e.current_level}</span>
-          <span class="badge badge-neutral">Submitted ${fmtDate(e.created_at)}</span>
-        </div>
-        <div class="flex gap-2">
-          <button class="btn btn-success" onclick="promptAction('approve', ${e.id})">
-            ✓ ${e.current_level === e.required_approval_level ? 'Approve' : 'Approve & Forward to EC'}
-          </button>
-          <button class="btn btn-danger" onclick="promptAction('reject', ${e.id})">✕ Reject</button>
-        </div>
-      </div>
-    </div>`).join('');
-}
-
-function renderAllEventsTable() {
-  const tbody = document.getElementById('all-reqs-tbody');
-  if (!allEvents.length) {
-    tbody.innerHTML = '<tr><td colspan="7" class="text-muted text-sm" style="padding:1rem;">No requests.</td></tr>';
-    return;
-  }
-  tbody.innerHTML = allEvents.map(e => `
-    <tr>
-      <td class="td-name">${escHtml(e.title)}</td>
-      <td>${escHtml(e.submitter_name || '—')}</td>
-      <td>${e.location ? escHtml(e.location) : '—'}</td>
-      <td>${e.start_date || '—'}</td>
-      <td><span class="badge badge-neutral" style="text-transform:uppercase;">${e.required_approval_level}</span></td>
-      <td><span class="badge ${STATUS_BADGE[e.status] || 'badge-neutral'}"
-               style="text-transform:capitalize;">${e.status}</span></td>
-      <td>
-        ${e.status === 'pending' ? `
-          <div class="flex gap-2">
-            <button class="btn btn-sm btn-success" onclick="promptAction('approve',${e.id})">✓</button>
-            <button class="btn btn-sm btn-danger"  onclick="promptAction('reject', ${e.id})">✕</button>
-          </div>` : '<span class="text-muted text-sm">—</span>'}
-      </td>
-    </tr>`).join('');
-}
 
 let pendingAction = null;
 
 function promptAction(type, id) {
   pendingAction = { type, id };
-  const titles = { approve: 'Approve Request', reject: 'Reject Request', forward_report: 'Forward Report', close_report: 'Close Report' };
+  const titles = { approve: 'Approve Request', reject: 'Reject Request', approve_report: 'Approve Report', reject_report: 'Reject Report' };
   document.getElementById('action-modal-title').textContent = titles[type] || 'Confirm';
   document.getElementById('action-note').value = '';
   const btn = document.getElementById('action-confirm-btn');
-  btn.className = `btn ${type === 'reject' || type === 'close_report' ? 'btn-danger' : 'btn-primary'}`;
-  btn.textContent = type === 'forward_report' ? 'Forward' : type === 'close_report' ? 'Close' : type.charAt(0).toUpperCase() + type.slice(1);
+  btn.className = `btn ${type === 'reject' || type === 'reject_report' ? 'btn-danger' : 'btn-primary'}`;
+  btn.textContent = titles[type] || (type.charAt(0).toUpperCase() + type.slice(1));
   document.getElementById('action-modal').classList.add('open');
 }
 
@@ -736,30 +664,24 @@ async function executeAction() {
   } else if (type === 'reject') {
     res = await api('PUT', `/api/events/${id}/reject`, { note });
     if (res && !res.error) toast('Request rejected.', 'success');
-  } else if (type === 'forward_report') {
-    res = await api('PUT', `/api/reports/${id}/forward`, { note });
-    if (res && !res.error) toast('Report forwarded to EC.', 'success');
-  } else if (type === 'close_report') {
-    res = await api('PUT', `/api/reports/${id}/close`, { note });
-    if (res && !res.error) toast('Report closed.', 'success');
+  } else if (type === 'approve_report') {
+    res = await api('PUT', `/api/reports/${id}/approve`, { note });
+    if (res && !res.error) toast(res.status === 'approved' ? 'Report approved.' : 'Report forwarded to EC.', 'success');
+  } else if (type === 'reject_report') {
+    res = await api('PUT', `/api/reports/${id}/reject`, { note });
+    if (res && !res.error) toast('Report rejected.', 'danger');
   }
 
   if (res && res.error) { toast(res.error, 'danger'); return; }
 
-  if (type === 'approve' || type === 'reject') {
-    allEvents = await api('GET', '/api/events') || [];
-    renderPendingEvents(); renderAllEventsTable(); renderHomePendingEvents();
-  } else {
-    allReports = await api('GET', '/api/reports') || [];
-    renderReports(); renderHomePendingReports();
-  }
+  await loadComms();
 
   const stats = await api('GET', '/api/stats');
   if (stats) {
     document.getElementById('stat-pending').textContent = stats.pending_requests ?? 0;
     document.getElementById('stat-reports').textContent = stats.pending_reports ?? 0;
     const n = stats.pending_requests;
-    ['req-badge','header-badge','approve-reqs-badge'].forEach(id => {
+    ['header-badge'].forEach(id => {
       const el = document.getElementById(id);
       if (el) { el.textContent = n; el.style.display = n > 0 ? '' : 'none'; }
     });
@@ -769,7 +691,6 @@ async function executeAction() {
 // ── REPORTS ────────────────────────────────────────────────────────────────────
 async function loadReports() {
   allReports = await api('GET', '/api/reports') || [];
-  renderReports();
   renderHomePendingReports();
 }
 
@@ -792,57 +713,233 @@ function renderHomePendingReports() {
     </div>`).join('');
 }
 
-function renderReports() {
-  const el = document.getElementById('reports-list');
-  if (!allReports.length) {
-    el.innerHTML = '<div class="card"><div class="card-body text-muted text-sm">No reports at GC level.</div></div>';
-    return;
-  }
-  const STATUS_COLORS = { submitted: 'badge-info', forwarded: 'badge-warning', closed: 'badge-neutral' };
-  el.innerHTML = allReports.map(r => `
-    <div class="card">
-      <div class="card-body">
-        <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:1rem;margin-bottom:0.75rem;">
-          <div>
-            <div class="font-semibold" style="font-size:1rem;">${escHtml(r.title)}</div>
-            <div class="text-muted text-sm mt-1">
-              From <strong>${escHtml(r.submitter_name || '—')}</strong>
-              · Submitted ${fmtDate(r.created_at)}
-              · Currently at: ${r.current_level}
-            </div>
-          </div>
-          <span class="badge ${STATUS_COLORS[r.status] || 'badge-neutral'}"
-                style="text-transform:capitalize;">${r.status}</span>
+
+// ── COMMUNICATIONS ──────────────────────────────────────────────────────────
+let sentRequests = [], sentReports = [], inboxRequests = [], inboxReports = [];
+let inboxReqHistory = [], inboxRptHistory = [];
+let trackerReqFilter = 'all', trackerRptFilter = 'all';
+let eligibleRequests = [];
+
+async function loadComms() {
+  const [evts, rpts, reqHist, rptHist, eligible] = await Promise.all([
+    api('GET', '/api/events'),
+    api('GET', '/api/reports'),
+    api('GET', '/api/events/inbox-history'),
+    api('GET', '/api/reports/inbox-history'),
+    api('GET', '/api/reports/eligible-requests'),
+  ]);
+  const allEvts = evts || [];
+  const allRpts = rpts || [];
+  sentRequests     = allEvts.filter(e => e.submitted_by === userData.id);
+  inboxRequests    = allEvts.filter(e => e.submitted_by !== userData.id && e.status === 'pending');
+  sentReports      = allRpts.filter(r => r.submitted_by === userData.id);
+  inboxReports     = allRpts.filter(r => r.submitted_by !== userData.id && r.status === 'pending');
+  inboxReqHistory  = reqHist || [];
+  inboxRptHistory  = rptHist || [];
+  eligibleRequests = Array.isArray(eligible) ? eligible : [];
+
+  const pending = inboxRequests.length;
+  ['inbox-req-badge', 'header-badge'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) { el.textContent = pending; el.style.display = pending > 0 ? '' : 'none'; }
+  });
+
+  populateReportRequestDropdown();
+  renderSentRequests(); renderSentReports();
+  renderInboxReqPending(); renderInboxReqHistory();
+  renderInboxRptPending(); renderInboxRptHistory();
+  renderTrackerRequests(); renderTrackerReports();
+  renderHomePendingEvents(); renderHomePendingReports();
+}
+
+function populateReportRequestDropdown() {
+  const sel   = document.getElementById('crpt-request');
+  const noMsg = document.getElementById('crpt-no-requests');
+  if (!sel) return;
+  sel.innerHTML = '<option value="">— Select an approved activity —</option>' +
+    eligibleRequests.map(r =>
+      `<option value="${r.id}">${escHtml(r.title)}${r.start_date ? ' (' + r.start_date + ')' : ''}</option>`
+    ).join('');
+  if (noMsg) noMsg.style.display = eligibleRequests.length ? 'none' : '';
+}
+
+function renderSentRequests() {
+  const el = document.getElementById('sent-requests-list');
+  if (!sentRequests.length) { el.innerHTML = '<div class="card"><div class="card-body text-muted text-sm">No requests sent yet.</div></div>'; return; }
+  el.innerHTML = sentRequests.map(e => `
+    <div class="card" style="margin-bottom:0;">
+      <div class="card-body" style="display:flex;justify-content:space-between;align-items:flex-start;gap:1rem;">
+        <div style="flex:1;min-width:0;">
+          <div class="font-semibold" style="font-size:0.95rem;margin-bottom:0.25rem;">${escHtml(e.title)}</div>
+          <div class="text-muted text-sm">${fmtDate(e.created_at)} · Needs: ${e.required_approval_level.toUpperCase()} · At: ${e.current_level}</div>
         </div>
-        <div class="card" style="background:var(--bg);border:none;padding:1rem;font-size:0.875rem;
-                                  line-height:1.7;color:var(--text-secondary);white-space:pre-wrap;
-                                  max-height:150px;overflow-y:auto;">
-          ${escHtml(r.body)}
-        </div>
-        ${r.status !== 'closed' ? `
-        <div class="flex gap-2 mt-3">
-          <button class="btn btn-primary" onclick="promptAction('forward_report', ${r.id})">
-            ↑ Forward to EC
-          </button>
-          <button class="btn btn-secondary" onclick="promptAction('close_report', ${r.id})">
-            ✓ Close
-          </button>
-        </div>` : ''}
+        <span class="badge ${STATUS_BADGE[e.status] || 'badge-neutral'}" style="flex-shrink:0;text-transform:capitalize;">${e.status}</span>
       </div>
     </div>`).join('');
 }
 
-// ── COMMUNICATIONS ──────────────────────────────────────────────────────────
-let commsTrackerEvts = [], commsTrackerRpts = [];
+function renderSentReports() {
+  const el = document.getElementById('sent-reports-list');
+  if (!sentReports.length) { el.innerHTML = '<div class="card"><div class="card-body text-muted text-sm">No reports sent yet.</div></div>'; return; }
+  el.innerHTML = sentReports.map(r => `
+    <div class="card" style="margin-bottom:0;">
+      <div class="card-body" style="display:flex;justify-content:space-between;align-items:flex-start;gap:1rem;">
+        <div style="flex:1;min-width:0;">
+          <div class="font-semibold" style="font-size:0.95rem;margin-bottom:0.25rem;">${escHtml(r.title)}</div>
+          <div class="text-muted text-sm">${fmtDate(r.created_at)}</div>
+          <div class="text-sm" style="color:var(--text-secondary);margin-top:0.2rem;">${escHtml(r.body).slice(0,100)}${r.body.length > 100 ? '…' : ''}</div>
+        </div>
+        <span class="badge ${STATUS_BADGE_RPT[r.status] || 'badge-neutral'}" style="flex-shrink:0;text-transform:capitalize;">${r.status}</span>
+      </div>
+    </div>`).join('');
+}
 
-async function loadComms() {
-  const [evts, rpts] = await Promise.all([
-    api('GET', '/api/events'),
-    api('GET', '/api/reports'),
-  ]);
-  commsTrackerEvts = (evts || []).filter(e => e.submitted_by === userData.id);
-  commsTrackerRpts = (rpts || []).filter(r => r.submitted_by === userData.id);
-  renderCommsTracker();
+function renderInboxReqPending() {
+  const el = document.getElementById('inbox-req-pending-list');
+  const b  = document.getElementById('inbox-pending-badge');
+  if (!inboxRequests.length) {
+    el.innerHTML = '<div class="card"><div class="card-body text-muted text-sm">No pending requests.</div></div>';
+    if (b) b.style.display = 'none'; return;
+  }
+  if (b) { b.textContent = inboxRequests.length; b.style.display = ''; }
+  el.innerHTML = inboxRequests.map(e => `
+    <div class="request-card" id="inbox-card-${e.id}">
+      <div class="request-card-header">
+        <div style="flex:1;min-width:0;">
+          <h4>${escHtml(e.title)}</h4>
+          <div class="meta">${escHtml(e.submitter_name || '—')}${e.submitter_district ? ' · ' + escHtml(e.submitter_district) : ''} · ${fmtDate(e.created_at)}</div>
+        </div>
+        <span class="badge badge-warning">Pending review</span>
+      </div>
+      ${e.description ? `<div class="text-sm" style="color:var(--text-secondary);">${escHtml(e.description)}</div>` : ''}
+      <div class="text-sm" style="display:flex;gap:1.5rem;flex-wrap:wrap;">
+        ${e.location ? `<span>📍 ${escHtml(e.location)}</span>` : ''}
+        ${e.start_date ? `<span>📅 ${e.start_date}${e.end_date ? ' → ' + e.end_date : ''}</span>` : ''}
+        ${e.participants ? `<span>👥 ${e.participants}</span>` : ''}
+      </div>
+      <div class="text-sm text-muted">Approval needed: <strong>${e.required_approval_level.toUpperCase()}</strong></div>
+      ${e.notes ? `<div class="text-sm" style="color:var(--text-secondary);">Notes: ${escHtml(e.notes)}</div>` : ''}
+      <div class="flex gap-2" style="margin-top:0.5rem;">
+        <button class="btn btn-success btn-sm" onclick="promptAction('approve', ${e.id})">✅ ${e.current_level === e.required_approval_level ? 'Approve' : 'Approve & Forward to EC'}</button>
+        <button class="btn btn-danger btn-sm" onclick="promptAction('reject', ${e.id})">❌ Reject</button>
+      </div>
+    </div>`).join('');
+}
+
+function renderInboxReqHistory() {
+  populateDistrictFilter(inboxReqHistory, 'hist-req-district-filter');
+  filterInboxReqHistory();
+}
+
+function filterInboxReqHistory() {
+  const el = document.getElementById('inbox-req-history-list');
+  const distVal = document.getElementById('hist-req-district-filter')?.value || '';
+  let items = inboxReqHistory;
+  if (distVal) items = items.filter(e => (e.submitter_district || '') === distVal);
+  if (!items.length) { el.innerHTML = '<div class="card"><div class="card-body text-muted text-sm">No history.</div></div>'; return; }
+  el.innerHTML = items.map(e => `
+    <div class="card" style="margin-bottom:0;">
+      <div class="card-body" style="display:flex;justify-content:space-between;align-items:flex-start;gap:1rem;">
+        <div style="flex:1;min-width:0;">
+          <div class="font-semibold" style="font-size:0.95rem;margin-bottom:0.25rem;">${escHtml(e.title)}</div>
+          <div class="text-muted text-sm">From: ${escHtml(e.submitter_name || '—')}${e.submitter_district ? ' · ' + escHtml(e.submitter_district) : ''}</div>
+          <div class="text-muted text-sm">${fmtDate(e.updated_at || e.created_at)}</div>
+        </div>
+        <span class="badge ${STATUS_BADGE[e.status] || 'badge-neutral'}" style="flex-shrink:0;text-transform:capitalize;">${e.status}</span>
+      </div>
+    </div>`).join('');
+}
+
+function renderInboxRptPending() {
+  const el = document.getElementById('inbox-rpt-pending-list');
+  if (!inboxReports.length) { el.innerHTML = '<div class="card"><div class="card-body text-muted text-sm">No pending reports.</div></div>'; return; }
+  el.innerHTML = inboxReports.map(r => `
+    <div class="card" style="margin-bottom:0;">
+      <div class="card-body">
+        <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:1rem;margin-bottom:0.75rem;">
+          <div>
+            <div class="font-semibold">${escHtml(r.title)}</div>
+            <div class="text-muted text-sm">From: ${escHtml(r.submitter_name || '—')}${r.submitter_district ? ' · ' + escHtml(r.submitter_district) : ''} · ${fmtDate(r.created_at)}</div>
+          </div>
+          <span class="badge ${STATUS_BADGE_RPT[r.status] || 'badge-neutral'}" style="text-transform:capitalize;">${r.status}</span>
+        </div>
+        <div style="background:var(--bg);padding:0.75rem;border-radius:6px;font-size:0.875rem;max-height:120px;overflow-y:auto;white-space:pre-wrap;">${escHtml(r.body)}</div>
+        <div class="flex gap-2 mt-3">
+          <button class="btn btn-success btn-sm" onclick="promptAction('approve_report', ${r.id})">✅ ${r.current_level === r.required_approval_level ? 'Approve' : 'Approve & Forward to EC'}</button>
+          <button class="btn btn-danger btn-sm" onclick="promptAction('reject_report', ${r.id})">❌ Reject</button>
+        </div>
+      </div>
+    </div>`).join('');
+}
+
+function renderInboxRptHistory() {
+  populateDistrictFilter(inboxRptHistory, 'hist-rpt-district-filter');
+  filterInboxRptHistory();
+}
+
+function filterInboxRptHistory() {
+  const el = document.getElementById('inbox-rpt-history-list');
+  const distVal = document.getElementById('hist-rpt-district-filter')?.value || '';
+  let items = inboxRptHistory;
+  if (distVal) items = items.filter(r => (r.submitter_district || '') === distVal);
+  if (!items.length) { el.innerHTML = '<div class="card"><div class="card-body text-muted text-sm">No history.</div></div>'; return; }
+  el.innerHTML = items.map(r => `
+    <div class="card" style="margin-bottom:0;">
+      <div class="card-body" style="display:flex;justify-content:space-between;align-items:flex-start;gap:1rem;">
+        <div style="flex:1;min-width:0;">
+          <div class="font-semibold" style="font-size:0.95rem;margin-bottom:0.25rem;">${escHtml(r.title)}</div>
+          <div class="text-muted text-sm">From: ${escHtml(r.submitter_name || '—')}${r.submitter_district ? ' · ' + escHtml(r.submitter_district) : ''}</div>
+          <div class="text-muted text-sm">${fmtDate(r.updated_at || r.created_at)}</div>
+        </div>
+        <span class="badge ${STATUS_BADGE_RPT[r.status] || 'badge-neutral'}" style="flex-shrink:0;text-transform:capitalize;">${r.status}</span>
+      </div>
+    </div>`).join('');
+}
+
+function renderTrackerRequests() {
+  const el = document.getElementById('tracker-requests-list');
+  const items = trackerReqFilter === 'all' ? sentRequests : sentRequests.filter(e => e.status === trackerReqFilter);
+  if (!items.length) { el.innerHTML = '<div class="card"><div class="card-body text-muted text-sm">No requests found.</div></div>'; return; }
+  el.innerHTML = items.map(e => `
+    <div class="card" style="margin-bottom:0;">
+      <div class="card-body" style="display:flex;justify-content:space-between;align-items:flex-start;gap:1rem;">
+        <div style="flex:1;min-width:0;">
+          <div class="font-semibold" style="font-size:0.95rem;margin-bottom:0.25rem;">${escHtml(e.title)}</div>
+          <div class="text-muted text-sm">${fmtDate(e.created_at)} · Needs: ${e.required_approval_level.toUpperCase()} · At: ${e.current_level}</div>
+        </div>
+        <span class="badge ${STATUS_BADGE[e.status] || 'badge-neutral'}" style="flex-shrink:0;text-transform:capitalize;">${e.status}</span>
+      </div>
+    </div>`).join('');
+}
+
+function renderTrackerReports() {
+  const el = document.getElementById('tracker-reports-list');
+  const items = trackerRptFilter === 'all' ? sentReports : sentReports.filter(r => r.status === trackerRptFilter);
+  if (!items.length) { el.innerHTML = '<div class="card"><div class="card-body text-muted text-sm">No reports found.</div></div>'; return; }
+  el.innerHTML = items.map(r => `
+    <div class="card" style="margin-bottom:0;">
+      <div class="card-body" style="display:flex;justify-content:space-between;align-items:flex-start;gap:1rem;">
+        <div style="flex:1;min-width:0;">
+          <div class="font-semibold" style="font-size:0.95rem;margin-bottom:0.25rem;">${escHtml(r.title)}</div>
+          <div class="text-muted text-sm">${fmtDate(r.created_at)}</div>
+        </div>
+        <span class="badge ${STATUS_BADGE_RPT[r.status] || 'badge-neutral'}" style="flex-shrink:0;text-transform:capitalize;">${r.status}</span>
+      </div>
+    </div>`).join('');
+}
+
+function setTrackerFilter(type, filter, btn) {
+  if (type === 'requests') { trackerReqFilter = filter; renderTrackerRequests(); }
+  else { trackerRptFilter = filter; renderTrackerReports(); }
+  btn.closest('div').querySelectorAll('button').forEach(b => b.className = 'btn btn-sm btn-secondary');
+  btn.className = 'btn btn-sm btn-primary';
+}
+
+function populateDistrictFilter(items, filterId) {
+  const el = document.getElementById(filterId);
+  if (!el) return;
+  const dists = [...new Set(items.map(i => i.submitter_district).filter(Boolean))];
+  el.innerHTML = '<option value="">All Districts</option>' + dists.map(d => `<option value="${escHtml(d)}">${escHtml(d)}</option>`).join('');
 }
 
 async function submitCommsRequest() {
@@ -886,8 +983,10 @@ function clearCommsRequestForm() {
 }
 
 async function submitCommsReport() {
-  const title = document.getElementById('crpt-title').value.trim();
-  const body = document.getElementById('crpt-body').value.trim();
+  const title   = document.getElementById('crpt-title').value.trim();
+  const body    = document.getElementById('crpt-body').value.trim();
+  const reqId   = parseInt(document.getElementById('crpt-request').value) || null;
+  const level   = document.getElementById('crpt-approval-level').value;
   const alertEl = document.getElementById('crpt-alert');
 
   if (!title || !body) {
@@ -895,7 +994,11 @@ async function submitCommsReport() {
     return;
   }
 
-  const res = await api('POST', '/api/reports', { title, body });
+  const res = await api('POST', '/api/reports', {
+    title, body,
+    request_id: reqId,
+    required_approval_level: level,
+  });
   if (res && res.id) {
     alertEl.innerHTML = '<div class="alert alert-success"><span class="alert-icon">✅</span> Report submitted to EC.</div>';
     clearCommsReportForm();
@@ -909,53 +1012,19 @@ async function submitCommsReport() {
 function clearCommsReportForm() {
   document.getElementById('crpt-title').value = '';
   document.getElementById('crpt-body').value = '';
-}
-
-function renderCommsTracker() {
-  const el = document.getElementById('comms-tracker-list');
-  const STATUS_BADGE = { pending: 'badge-warning', approved: 'badge-success', rejected: 'badge-danger' };
-  const STATUS_BADGE_RPT = { submitted: 'badge-info', forwarded: 'badge-warning', closed: 'badge-neutral' };
-  if (!commsTrackerEvts.length && !commsTrackerRpts.length) {
-    el.innerHTML = '<div class="card"><div class="card-body text-muted text-sm">No submissions yet.</div></div>';
-    return;
-  }
-  const evtHtml = commsTrackerEvts.map(e => `
-    <div class="card" style="margin-bottom:0;">
-      <div class="card-body" style="display:flex;justify-content:space-between;align-items:flex-start;gap:1rem;">
-        <div style="flex:1;min-width:0;">
-          <div class="flex gap-2 mb-1">
-            <span class="badge badge-neutral">Event</span>
-            <span class="font-semibold" style="font-size:0.95rem;">${escHtml(e.title)}</span>
-          </div>
-          <div class="text-muted text-sm">Submitted ${fmtDate(e.created_at)} · Needs: ${e.required_approval_level.toUpperCase()}</div>
-          <div class="flex gap-2 mt-2">
-            <span class="badge badge-warning">At: ${e.current_level}</span>
-          </div>
-        </div>
-        <span class="badge ${STATUS_BADGE[e.status] || 'badge-neutral'}" style="flex-shrink:0;text-transform:capitalize;">${e.status}</span>
-      </div>
-    </div>`).join('');
-  const rptHtml = commsTrackerRpts.map(r => `
-    <div class="card" style="margin-bottom:0;">
-      <div class="card-body" style="display:flex;justify-content:space-between;align-items:flex-start;gap:1rem;">
-        <div style="flex:1;min-width:0;">
-          <div class="flex gap-2 mb-1">
-            <span class="badge badge-neutral">Report</span>
-            <span class="font-semibold" style="font-size:0.95rem;">${escHtml(r.title)}</span>
-          </div>
-          <div class="text-muted text-sm">Submitted ${fmtDate(r.created_at)}</div>
-          <div class="text-sm mt-1" style="color:var(--text-secondary);">${escHtml(r.body).slice(0,120)}${r.body && r.body.length > 120 ? '…' : ''}</div>
-        </div>
-        <span class="badge ${STATUS_BADGE_RPT[r.status] || 'badge-neutral'}" style="flex-shrink:0;text-transform:capitalize;">${r.status}</span>
-      </div>
-    </div>`).join('');
-  el.innerHTML = evtHtml + rptHtml;
+  document.getElementById('crpt-request').value = '';
+  document.getElementById('crpt-approval-level').value = 'ec';
 }
 
 const SECTION_TITLES = {
-  home:    ['Dashboard',      'GC overview'],
-  users:   ['My Group',       'Manage your group'],
-  comms:   ['Communications', 'Send requests and reports, review and approve'],
+  home:               ['Dashboard',          'GC overview'],
+  users:              ['My Group',           'Manage your group'],
+  'send-request':     ['Send Request',       'Submit an event request'],
+  'send-report':      ['Send Report',        'Submit a report'],
+  'inbox-requests':   ['Received Requests',  'Review event requests from district commissioners'],
+  'inbox-reports':    ['Received Reports',   'Review and forward reports from districts'],
+  'tracker-requests': ['Request Tracker',    'Track your submitted requests'],
+  'tracker-reports':  ['Report Tracker',     'Track your submitted reports'],
 };
 
 let usersTabFilter = 'leaders';
@@ -973,23 +1042,9 @@ function showUsersTab(tab, btn) {
   renderUsersTable(allUsers);
 }
 
-function goToCommsTab(tabId) {
-  showSection('comms', null);
-  const targetPane = document.getElementById(tabId);
-  if (targetPane) {
-    targetPane.parentElement.querySelectorAll(':scope > .tab-pane').forEach(p => p.classList.remove('active'));
-    targetPane.classList.add('active');
-    const btn = document.querySelector(`#sec-comms > .tab-bar .tab-btn[onclick*="${tabId}"]`);
-    if (btn) {
-      document.querySelectorAll('#sec-comms > .tab-bar .tab-btn').forEach(b => b.classList.remove('active'));
-      btn.classList.add('active');
-    }
-  }
-}
-
 function showSection(id, btn) {
   document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
-  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+  document.querySelectorAll('.nav-item, .nav-sub-item').forEach(n => n.classList.remove('active'));
   document.getElementById('sec-' + id).classList.add('active');
   if (btn) btn.classList.add('active');
   const t = SECTION_TITLES[id] || [id, ''];

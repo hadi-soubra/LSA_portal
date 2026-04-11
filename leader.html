@@ -6,26 +6,6 @@
   <title>Leader Dashboard — LSA Portal</title>
   <link rel="stylesheet" href="styles/shared.css" />
   <link rel="stylesheet" href="styles/leader.css" />
-  <style>
-    .request-card {
-      background: var(--surface);
-      border: 1px solid var(--border-light);
-      border-radius: var(--radius);
-      padding: 1.25rem 1.5rem;
-      display: flex;
-      flex-direction: column;
-      gap: 0.75rem;
-      box-shadow: var(--shadow-sm);
-    }
-    .request-card-header {
-      display: flex;
-      justify-content: space-between;
-      align-items: flex-start;
-      gap: 1rem;
-    }
-    .request-card h4 { font-size: 1rem; font-weight: 600; }
-    .request-card .meta { font-size: 0.82rem; color: var(--text-muted); }
-  </style>
 </head>
 <body>
 <div id="toast-container"></div>
@@ -53,10 +33,20 @@
       </button>
 
       <span class="nav-section-label" style="margin-top:0.5rem;">Communications</span>
-      <button class="nav-item" id="nav-comms" onclick="showSection('comms', this)">
-        <span class="nav-icon">📡</span> Communications
-        <span class="nav-badge" id="pending-count" style="display:none;">0</span>
+
+      <span class="nav-group-label">📤 Outbox</span>
+      <button class="nav-sub-item" onclick="showSection('send-request', this)">Send Request</button>
+      <button class="nav-sub-item" onclick="showSection('send-report', this)">Send Report</button>
+
+      <span class="nav-group-label" id="nav-inbox-label" style="display:none;">📥 Inbox</span>
+      <button class="nav-sub-item" id="nav-inbox-requests" style="display:none;" onclick="showSection('inbox-requests', this)">
+        Requests <span class="nav-badge" id="inbox-req-badge" style="display:none;">0</span>
       </button>
+      <button class="nav-sub-item" id="nav-inbox-reports" style="display:none;" onclick="showSection('inbox-reports', this)">Reports</button>
+
+      <span class="nav-group-label">🗂 Tracker</span>
+      <button class="nav-sub-item" onclick="showSection('tracker-requests', this)">Requests</button>
+      <button class="nav-sub-item" onclick="showSection('tracker-reports', this)">Reports</button>
     </nav>
 
     <div class="sidebar-footer">
@@ -119,7 +109,7 @@
           <div class="card">
             <div class="card-header">
               <span class="card-title">📡 Recent Submissions</span>
-              <button class="btn btn-sm btn-secondary" onclick="showSection('comms', null)">View All</button>
+              <button class="btn btn-sm btn-secondary" onclick="showSection('tracker-requests', null)">View All</button>
             </div>
             <div class="activity-list" id="home-events-preview">
               <div class="text-muted text-sm" style="padding:1rem;">Loading…</div>
@@ -129,13 +119,13 @@
           <div class="card">
             <div class="card-header"><span class="card-title">⚡ Quick Actions</span></div>
             <div class="card-body" style="display:flex;flex-direction:column;gap:0.75rem;">
-              <button class="btn btn-primary btn-full" onclick="showSection('comms', null);switchTab(document.querySelector('#sec-comms .tab-btn'),'tab-cr')">
+              <button class="btn btn-primary btn-full" onclick="showSection('send-request', null)">
                 📤 Submit Event Request
               </button>
-              <button class="btn btn-secondary btn-full" onclick="showSection('comms', null);switchTab(document.querySelectorAll('#sec-comms .tab-btn')[1],'tab-crpt')">
+              <button class="btn btn-secondary btn-full" onclick="showSection('send-report', null)">
                 📊 Submit Report
               </button>
-              <button class="btn btn-outline-primary btn-full" onclick="showSection('comms', null);switchTab(document.querySelectorAll('#sec-comms .tab-btn')[2],'tab-ctracker')">
+              <button class="btn btn-outline-primary btn-full" onclick="showSection('tracker-requests', null)">
                 🗂 View Tracker
               </button>
             </div>
@@ -143,107 +133,180 @@
         </div>
       </div>
 
-      <!-- ===== COMMUNICATIONS ===== -->
-      <div class="section" id="sec-comms">
+      <!-- ===== SEND REQUEST ===== -->
+      <div class="section" id="sec-send-request">
         <div class="page-header">
-          <h3>Communications</h3>
-          <p>Send, receive and track</p>
+          <h3>Send Request</h3>
+          <p>Submit an event request for approval</p>
         </div>
+        <div class="card" style="margin-bottom:1.5rem;">
+          <div class="card-header"><span class="card-title">📤 New Event Request</span></div>
+          <div class="card-body">
+            <div id="cr-alert"></div>
+            <div class="form-group">
+              <label class="form-label">Event Title *</label>
+              <input class="form-control" type="text" id="cr-title" placeholder="Enter event title" />
+            </div>
+            <div class="form-group">
+              <label class="form-label">Description</label>
+              <textarea class="form-control" id="cr-desc" rows="2" placeholder="Describe the event…"></textarea>
+            </div>
+            <div class="form-row">
+              <div>
+                <label class="form-label">Start Date *</label>
+                <input class="form-control" type="date" id="cr-date" />
+              </div>
+              <div>
+                <label class="form-label">End Date</label>
+                <input class="form-control" type="date" id="cr-date-end" />
+              </div>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Location *</label>
+              <input class="form-control" type="text" id="cr-location" placeholder="e.g., Cedars, North Lebanon" />
+            </div>
+            <div class="form-group">
+              <label class="form-label">Expected Participants</label>
+              <input class="form-control" type="number" id="cr-participants" placeholder="Number of participants" min="1" />
+            </div>
+            <div class="form-group">
+              <label class="form-label">Required Approval Level *</label>
+              <select class="form-control" id="cr-approval-level">
+                <option value="group">Group Leader only</option>
+                <option value="district" selected>District Commissioner</option>
+                <option value="gc">General Committee (GC)</option>
+                <option value="ec">Executive Committee (EC)</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Notes</label>
+              <textarea class="form-control" id="cr-notes" rows="2" placeholder="Any other information…"></textarea>
+            </div>
+            <div style="display:flex;gap:0.75rem;">
+              <button class="btn btn-primary" onclick="submitCommsRequest()">📤 Submit Request</button>
+              <button class="btn btn-secondary" onclick="clearCommsRequestForm()">Clear</button>
+            </div>
+          </div>
+        </div>
+        <h4 style="font-size:0.95rem;color:var(--text-secondary);margin-bottom:1rem;">Sent Requests History</h4>
+        <div style="display:flex;flex-direction:column;gap:0.75rem;" id="sent-requests-list">
+          <div class="text-muted text-sm">Loading…</div>
+        </div>
+      </div>
 
+      <!-- ===== SEND REPORT ===== -->
+      <div class="section" id="sec-send-report">
+        <div class="page-header">
+          <h3>Send Report</h3>
+          <p>Submit a report to your district</p>
+        </div>
+        <div class="card" style="margin-bottom:1.5rem;">
+          <div class="card-header"><span class="card-title">📊 New Report</span></div>
+          <div class="card-body">
+            <div id="crpt-alert"></div>
+            <div class="form-group">
+              <label class="form-label">Activity (Approved Request) *</label>
+              <select class="form-control" id="crpt-request">
+                <option value="">— Select an approved activity —</option>
+              </select>
+              <p class="text-muted text-sm" id="crpt-no-requests" style="display:none;margin-top:0.4rem;">No approved activities without a report yet.</p>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Report Title *</label>
+              <input class="form-control" type="text" id="crpt-title" placeholder="e.g., Monthly Activity Report – April 2025" />
+            </div>
+            <div class="form-group">
+              <label class="form-label">Report Body *</label>
+              <textarea class="form-control" id="crpt-body" rows="8" placeholder="Write your full report here…"></textarea>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Required Approval Level *</label>
+              <select class="form-control" id="crpt-approval-level">
+                <option value="district">District</option>
+                <option value="gc">GC</option>
+                <option value="ec">EC (National)</option>
+              </select>
+            </div>
+            <div style="display:flex;gap:0.75rem;">
+              <button class="btn btn-primary" onclick="submitCommsReport()">📤 Submit Report</button>
+              <button class="btn btn-secondary" onclick="clearCommsReportForm()">Clear</button>
+            </div>
+          </div>
+        </div>
+        <h4 style="font-size:0.95rem;color:var(--text-secondary);margin-bottom:1rem;">Sent Reports History</h4>
+        <div style="display:flex;flex-direction:column;gap:0.75rem;" id="sent-reports-list">
+          <div class="text-muted text-sm">Loading…</div>
+        </div>
+      </div>
+
+      <!-- ===== INBOX — REQUESTS (no-color group leaders only) ===== -->
+      <div class="section" id="sec-inbox-requests">
+        <div class="page-header">
+          <h3>Received Requests</h3>
+          <p>Review event requests from members of your group</p>
+        </div>
         <div class="tab-bar">
-          <button class="tab-btn active" onclick="switchTab(this, 'tab-cr')">📤 Send Request</button>
-          <button class="tab-btn" onclick="switchTab(this, 'tab-crpt')">📊 Send Report</button>
-          <button class="tab-btn" onclick="switchTab(this, 'tab-ctracker')">🗂 Tracker</button>
-          <button class="tab-btn" id="tab-btn-approvals" style="display:none;" onclick="switchTab(this, 'tab-capprovals')">⏳ Approvals <span class="nav-badge" id="approvals-count" style="display:none;"></span></button>
+          <button class="tab-btn active" onclick="switchTab(this, 'tab-inbox-req-pending')">⏳ Pending <span class="nav-badge" id="inbox-pending-badge" style="display:none;position:static;margin-left:4px;"></span></button>
+          <button class="tab-btn" onclick="switchTab(this, 'tab-inbox-req-history')">📋 History</button>
         </div>
-
-        <!-- Send Request -->
-        <div class="tab-pane active" id="tab-cr">
-          <div class="card">
-            <div class="card-header"><span class="card-title">📤 Send Request to District</span></div>
-            <div class="card-body">
-              <div id="cr-alert"></div>
-              <div class="form-group">
-                <label class="form-label">Event Title *</label>
-                <input class="form-control" type="text" id="cr-title" placeholder="Enter event title" />
-              </div>
-              <div class="form-group">
-                <label class="form-label">Description</label>
-                <textarea class="form-control" id="cr-desc" rows="2" placeholder="Describe the event…"></textarea>
-              </div>
-              <div class="form-row">
-                <div>
-                  <label class="form-label">Start Date *</label>
-                  <input class="form-control" type="date" id="cr-date" />
-                </div>
-                <div>
-                  <label class="form-label">End Date</label>
-                  <input class="form-control" type="date" id="cr-date-end" />
-                </div>
-              </div>
-              <div class="form-group">
-                <label class="form-label">Location *</label>
-                <input class="form-control" type="text" id="cr-location" placeholder="e.g., Cedars, North Lebanon" />
-              </div>
-              <div class="form-group">
-                <label class="form-label">Expected Participants</label>
-                <input class="form-control" type="number" id="cr-participants" placeholder="Number of participants" min="1" />
-              </div>
-              <div class="form-group">
-                <label class="form-label">Required Approval Level *</label>
-                <select class="form-control" id="cr-approval-level">
-                  <option value="group">Group Leader only</option>
-                  <option value="district" selected>District Commissioner</option>
-                  <option value="gc">General Committee (GC)</option>
-                  <option value="ec">Executive Committee (EC)</option>
-                </select>
-              </div>
-              <div class="form-group">
-                <label class="form-label">Notes</label>
-                <textarea class="form-control" id="cr-notes" rows="2" placeholder="Any other information…"></textarea>
-              </div>
-              <div style="display:flex;gap:0.75rem;margin-top:0.25rem;">
-                <button class="btn btn-primary" onclick="submitCommsRequest()">📤 Submit Request</button>
-                <button class="btn btn-secondary" onclick="clearCommsRequestForm()">Clear</button>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <!-- Send Report -->
-        <div class="tab-pane" id="tab-crpt">
-          <div class="card">
-            <div class="card-header"><span class="card-title">📊 Send Report to District</span></div>
-            <div class="card-body">
-              <div id="crpt-alert"></div>
-              <div class="form-group">
-                <label class="form-label">Report Title *</label>
-                <input class="form-control" type="text" id="crpt-title" placeholder="e.g., Monthly Activity Report – April 2024" />
-              </div>
-              <div class="form-group">
-                <label class="form-label">Report Body *</label>
-                <textarea class="form-control" id="crpt-body" rows="8" placeholder="Write your full report here…"></textarea>
-              </div>
-              <div style="display:flex;gap:0.75rem;margin-top:0.25rem;">
-                <button class="btn btn-primary" onclick="submitCommsReport()">📤 Submit Report</button>
-                <button class="btn btn-secondary" onclick="clearCommsReportForm()">Clear</button>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <!-- Tracker -->
-        <div class="tab-pane" id="tab-ctracker">
-          <div style="display:flex;flex-direction:column;gap:1rem;" id="comms-tracker-list">
+        <div class="tab-pane active" id="tab-inbox-req-pending">
+          <div style="display:flex;flex-direction:column;gap:1rem;" id="inbox-req-pending-list">
             <div class="text-muted text-sm">Loading…</div>
           </div>
         </div>
-
-        <!-- Approvals (admin leader + group head only) -->
-        <div class="tab-pane" id="tab-capprovals">
-          <div style="display:flex;flex-direction:column;gap:1rem;" id="comms-approvals-list">
+        <div class="tab-pane" id="tab-inbox-req-history">
+          <div style="display:flex;flex-direction:column;gap:0.75rem;" id="inbox-req-history-list">
             <div class="text-muted text-sm">Loading…</div>
           </div>
+        </div>
+      </div>
+
+      <!-- ===== INBOX — REPORTS ===== -->
+      <div class="section" id="sec-inbox-reports">
+        <div class="page-header"><h3>Received Reports</h3><p>Review and forward reports from members of your group</p></div>
+        <div class="tab-bar">
+          <button class="tab-btn active" onclick="switchTab(this, 'tab-inbox-rpt-pending')">⏳ Pending</button>
+          <button class="tab-btn" onclick="switchTab(this, 'tab-inbox-rpt-history')">📋 History</button>
+        </div>
+        <div class="tab-pane active" id="tab-inbox-rpt-pending">
+          <div style="display:flex;flex-direction:column;gap:1rem;" id="inbox-rpt-pending-list"><div class="text-muted text-sm">Loading…</div></div>
+        </div>
+        <div class="tab-pane" id="tab-inbox-rpt-history">
+          <div style="display:flex;flex-direction:column;gap:0.75rem;" id="inbox-rpt-history-list"><div class="text-muted text-sm">Loading…</div></div>
+        </div>
+      </div>
+
+      <!-- ===== TRACKER — REQUESTS ===== -->
+      <div class="section" id="sec-tracker-requests">
+        <div class="page-header">
+          <h3>Request Tracker</h3>
+          <p>Track all your submitted event requests</p>
+        </div>
+        <div style="display:flex;gap:0.5rem;flex-wrap:wrap;margin-bottom:1rem;">
+          <button class="btn btn-sm btn-primary" onclick="setTrackerFilter('requests','all',this)">All</button>
+          <button class="btn btn-sm btn-secondary" onclick="setTrackerFilter('requests','pending',this)">Pending</button>
+          <button class="btn btn-sm btn-secondary" onclick="setTrackerFilter('requests','approved',this)">Approved</button>
+          <button class="btn btn-sm btn-secondary" onclick="setTrackerFilter('requests','rejected',this)">Rejected</button>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:0.75rem;" id="tracker-requests-list">
+          <div class="text-muted text-sm">Loading…</div>
+        </div>
+      </div>
+
+      <!-- ===== TRACKER — REPORTS ===== -->
+      <div class="section" id="sec-tracker-reports">
+        <div class="page-header">
+          <h3>Report Tracker</h3>
+          <p>Track all your submitted reports</p>
+        </div>
+        <div style="display:flex;gap:0.5rem;flex-wrap:wrap;margin-bottom:1rem;">
+          <button class="btn btn-sm btn-primary" onclick="setTrackerFilter('reports','all',this)">All</button>
+          <button class="btn btn-sm btn-secondary" onclick="setTrackerFilter('reports','pending',this)">Pending</button>
+          <button class="btn btn-sm btn-secondary" onclick="setTrackerFilter('reports','approved',this)">Approved</button>
+          <button class="btn btn-sm btn-secondary" onclick="setTrackerFilter('reports','rejected',this)">Rejected</button>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:0.75rem;" id="tracker-reports-list">
+          <div class="text-muted text-sm">Loading…</div>
         </div>
       </div>
 
@@ -413,9 +476,11 @@ const isNoColorGroupLeader = isGroupLeader && !userData.color;
     document.getElementById('nav-group-section').style.display = '';
   }
 
-  // Show Approvals tab for no-color group/group_admin leaders
+  // Show inbox nav for no-color group leaders (they receive event approval requests)
   if (isNoColorGroupLeader) {
-    document.getElementById('tab-btn-approvals').style.display = '';
+    document.getElementById('nav-inbox-label').style.display = '';
+    document.getElementById('nav-inbox-requests').style.display = '';
+    // Reports are approved only by admin-dashboard users; no inbox-reports for leaders
   }
 
   const stats = await api('GET', '/api/stats');
@@ -424,9 +489,6 @@ const isNoColorGroupLeader = isGroupLeader && !userData.color;
     document.getElementById('stat-approved').textContent = stats.approved_events ?? 0;
     document.getElementById('stat-reports').textContent = stats.submitted_reports ?? 0;
     if (stats.pending_requests > 0) {
-      const badge = document.getElementById('pending-count');
-      badge.textContent = stats.pending_requests;
-      badge.style.display = '';
       document.getElementById('hdr-badge-dot').style.display = '';
     }
   }
@@ -437,53 +499,53 @@ const isNoColorGroupLeader = isGroupLeader && !userData.color;
 })();
 
 // ── COMMUNICATIONS ──────────────────────────────────────────────────────────
-let commsTrackerEvts = [], commsTrackerRpts = [];
+const STATUS_BADGE     = { pending: 'badge-warning', approved: 'badge-success', rejected: 'badge-danger' };
+const STATUS_BADGE_RPT = { pending: 'badge-warning', approved: 'badge-success', rejected: 'badge-danger' };
 
-const STATUS_BADGE = {
-  pending: 'badge-warning',
-  approved: 'badge-success',
-  rejected: 'badge-danger',
-};
-
-let commsApprovals = [];
+let sentRequests = [], sentReports = [], inboxRequests = [], inboxReqHistory = [];
+let trackerReqFilter = 'all', trackerRptFilter = 'all';
+let eligibleRequests = [];
 
 async function loadComms() {
-  const [evts, rpts] = await Promise.all([
+  const [evts, rpts, reqHist, eligible] = await Promise.all([
     api('GET', '/api/events'),
     api('GET', '/api/reports'),
+    isNoColorGroupLeader ? api('GET', '/api/events/inbox-history') : Promise.resolve([]),
+    api('GET', '/api/reports/eligible-requests'),
   ]);
   const allEvts = evts || [];
-  commsTrackerEvts = allEvts.filter(e => e.submitted_by === userData.id && !e.pending_my_review);
-  commsTrackerRpts = (rpts || []).filter(r => r.submitted_by === userData.id);
+  sentRequests     = allEvts.filter(e => e.submitted_by === userData.id && !e.pending_my_review);
+  sentReports      = (rpts || []).filter(r => r.submitted_by === userData.id);
+  inboxRequests    = allEvts.filter(e => e.pending_my_review);
+  inboxReqHistory  = reqHist || [];
+  eligibleRequests = Array.isArray(eligible) ? eligible : [];
+  populateReportRequestDropdown();
 
-  if (isNoColorGroupLeader) {
-    commsApprovals = allEvts.filter(e => e.pending_my_review);
-    renderCommsApprovals();
-    const badge = document.getElementById('approvals-count');
-    if (commsApprovals.length > 0) {
-      badge.textContent = commsApprovals.length;
-      badge.style.display = '';
-      const navBadge = document.getElementById('pending-count');
-      navBadge.textContent = commsApprovals.length;
-      navBadge.style.display = '';
-      document.getElementById('hdr-badge-dot').style.display = '';
-    } else {
-      badge.style.display = 'none';
-    }
+  if (isNoColorGroupLeader && inboxRequests.length > 0) {
+    const b = document.getElementById('inbox-req-badge');
+    b.textContent = inboxRequests.length;
+    b.style.display = '';
+    document.getElementById('hdr-badge-dot').style.display = '';
   }
 
-  renderCommsTracker();
+  renderSentRequests();
+  renderSentReports();
+  renderInboxRequestsPending();
+  renderInboxRequestsHistory();
+  renderInboxReportsPending();
+  renderInboxReportsHistory();
+  renderTrackerRequests();
+  renderTrackerReports();
   renderCommsHomePreview();
 }
 
 function renderCommsHomePreview() {
   const el = document.getElementById('home-events-preview');
-  const items = commsTrackerEvts;
-  if (!items.length) {
+  if (!sentRequests.length) {
     el.innerHTML = '<div class="text-muted text-sm" style="padding:1rem;">No submissions yet.</div>';
     return;
   }
-  el.innerHTML = items.slice(0, 4).map(e => `
+  el.innerHTML = sentRequests.slice(0, 4).map(e => `
     <div class="activity-item">
       <div class="activity-dot dot-${e.status === 'approved' ? 'green' : e.status === 'rejected' ? 'red' : 'amber'}"></div>
       <div class="activity-info">
@@ -494,36 +556,180 @@ function renderCommsHomePreview() {
     </div>`).join('');
 }
 
-async function submitCommsRequest() {
-  const title = document.getElementById('cr-title').value.trim();
-  const desc = document.getElementById('cr-desc').value.trim();
-  const start_date = document.getElementById('cr-date').value;
-  const end_date = document.getElementById('cr-date-end').value;
-  const location = document.getElementById('cr-location').value.trim();
-  const participants = document.getElementById('cr-participants').value;
-  const notes = document.getElementById('cr-notes').value.trim();
-  const required_approval_level = document.getElementById('cr-approval-level').value;
-  const alertEl = document.getElementById('cr-alert');
+function renderSentRequests() {
+  const el = document.getElementById('sent-requests-list');
+  if (!sentRequests.length) {
+    el.innerHTML = '<div class="card"><div class="card-body text-muted text-sm">No requests sent yet.</div></div>';
+    return;
+  }
+  el.innerHTML = sentRequests.map(e => `
+    <div class="card" style="margin-bottom:0;">
+      <div class="card-body" style="display:flex;justify-content:space-between;align-items:flex-start;gap:1rem;">
+        <div style="flex:1;min-width:0;">
+          <div class="font-semibold" style="font-size:0.95rem;margin-bottom:0.25rem;">${escHtml(e.title)}</div>
+          <div class="text-muted text-sm">${fmtDate(e.created_at)} · Needs: ${e.required_approval_level.toUpperCase()} · At: ${e.current_level}</div>
+          ${e.location ? `<div class="text-sm" style="margin-top:0.2rem;">📍 ${escHtml(e.location)}${e.start_date ? ' · 📅 ' + e.start_date : ''}</div>` : ''}
+        </div>
+        <span class="badge ${STATUS_BADGE[e.status] || 'badge-neutral'}" style="flex-shrink:0;text-transform:capitalize;">${e.status}</span>
+      </div>
+    </div>`).join('');
+}
 
+function renderSentReports() {
+  const el = document.getElementById('sent-reports-list');
+  if (!sentReports.length) {
+    el.innerHTML = '<div class="card"><div class="card-body text-muted text-sm">No reports sent yet.</div></div>';
+    return;
+  }
+  el.innerHTML = sentReports.map(r => `
+    <div class="card" style="margin-bottom:0;">
+      <div class="card-body" style="display:flex;justify-content:space-between;align-items:flex-start;gap:1rem;">
+        <div style="flex:1;min-width:0;">
+          <div class="font-semibold" style="font-size:0.95rem;margin-bottom:0.25rem;">${escHtml(r.title)}</div>
+          <div class="text-muted text-sm">${fmtDate(r.created_at)}</div>
+          <div class="text-sm" style="color:var(--text-secondary);margin-top:0.25rem;">${escHtml(r.body).slice(0,120)}${r.body.length > 120 ? '…' : ''}</div>
+        </div>
+        <span class="badge ${STATUS_BADGE_RPT[r.status] || 'badge-neutral'}" style="flex-shrink:0;text-transform:capitalize;">${r.status}</span>
+      </div>
+    </div>`).join('');
+}
+
+function renderInboxRequestsPending() {
+  const el = document.getElementById('inbox-req-pending-list');
+  if (!el) return;
+  if (!inboxRequests.length) {
+    el.innerHTML = '<div class="card"><div class="card-body text-muted text-sm">No pending requests.</div></div>';
+    const b = document.getElementById('inbox-pending-badge');
+    if (b) b.style.display = 'none';
+    return;
+  }
+  const b = document.getElementById('inbox-pending-badge');
+  if (b) { b.textContent = inboxRequests.length; b.style.display = ''; }
+  el.innerHTML = inboxRequests.map(e => `
+    <div class="request-card" id="inbox-card-${e.id}">
+      <div class="request-card-header">
+        <div style="flex:1;min-width:0;">
+          <h4>${escHtml(e.title)}</h4>
+          <div class="meta">${e.submitter_name ? escHtml(e.submitter_name) + ' · ' : ''}${fmtDate(e.created_at)}</div>
+        </div>
+        <span class="badge badge-warning">Awaiting review</span>
+      </div>
+      ${e.description ? `<div class="text-sm" style="color:var(--text-secondary);">${escHtml(e.description)}</div>` : ''}
+      <div class="text-sm" style="display:flex;gap:1.5rem;flex-wrap:wrap;">
+        ${e.location ? `<span>📍 ${escHtml(e.location)}</span>` : ''}
+        ${e.start_date ? `<span>📅 ${e.start_date}${e.end_date ? ' → ' + e.end_date : ''}</span>` : ''}
+        ${e.participants ? `<span>👥 ${e.participants}</span>` : ''}
+      </div>
+      <div class="text-sm text-muted">Approval needed: <strong>${e.required_approval_level.toUpperCase()}</strong></div>
+      ${e.notes ? `<div class="text-sm" style="color:var(--text-secondary);">Notes: ${escHtml(e.notes)}</div>` : ''}
+      <div id="inbox-alert-${e.id}"></div>
+      <div class="flex gap-2" style="margin-top:0.5rem;">
+        <button class="btn btn-success btn-sm" onclick="approveEvent(${e.id})">✅ Approve</button>
+        <button class="btn btn-danger btn-sm" onclick="rejectEvent(${e.id})">❌ Reject</button>
+      </div>
+    </div>`).join('');
+}
+
+function renderInboxRequestsHistory() {
+  const el = document.getElementById('inbox-req-history-list');
+  if (!el) return;
+  if (!inboxReqHistory.length) {
+    el.innerHTML = '<div class="card"><div class="card-body text-muted text-sm">No history yet.</div></div>';
+    return;
+  }
+  el.innerHTML = inboxReqHistory.map(e => `
+    <div class="card" style="margin-bottom:0;">
+      <div class="card-body" style="display:flex;justify-content:space-between;align-items:flex-start;gap:1rem;">
+        <div style="flex:1;min-width:0;">
+          <div class="font-semibold" style="font-size:0.95rem;margin-bottom:0.25rem;">${escHtml(e.title)}</div>
+          <div class="text-muted text-sm">From: ${escHtml(e.submitter_name || '—')}${e.submitter_group ? ' · ' + escHtml(e.submitter_group) : ''}</div>
+          <div class="text-muted text-sm">${fmtDate(e.updated_at || e.created_at)}</div>
+        </div>
+        <span class="badge ${STATUS_BADGE[e.status] || 'badge-neutral'}" style="flex-shrink:0;text-transform:capitalize;">${e.status}</span>
+      </div>
+    </div>`).join('');
+}
+
+function renderInboxReportsPending() {
+  const el = document.getElementById('inbox-rpt-pending-list');
+  if (!el) return;
+  el.innerHTML = '<div class="card"><div class="card-body text-muted text-sm">No pending reports. Reports are reviewed by district-level administrators.</div></div>';
+}
+
+function renderInboxReportsHistory() {
+  const el = document.getElementById('inbox-rpt-history-list');
+  if (!el) return;
+  el.innerHTML = '<div class="card"><div class="card-body text-muted text-sm">No report history.</div></div>';
+}
+
+function renderTrackerRequests() {
+  const el = document.getElementById('tracker-requests-list');
+  const items = trackerReqFilter === 'all' ? sentRequests : sentRequests.filter(e => e.status === trackerReqFilter);
+  if (!items.length) {
+    el.innerHTML = '<div class="card"><div class="card-body text-muted text-sm">No requests found.</div></div>';
+    return;
+  }
+  el.innerHTML = items.map(e => `
+    <div class="card" style="margin-bottom:0;">
+      <div class="card-body" style="display:flex;justify-content:space-between;align-items:flex-start;gap:1rem;">
+        <div style="flex:1;min-width:0;">
+          <div class="font-semibold" style="font-size:0.95rem;margin-bottom:0.25rem;">${escHtml(e.title)}</div>
+          <div class="text-muted text-sm">${fmtDate(e.created_at)} · Needs: ${e.required_approval_level.toUpperCase()} · Currently at: ${e.current_level}</div>
+        </div>
+        <span class="badge ${STATUS_BADGE[e.status] || 'badge-neutral'}" style="flex-shrink:0;text-transform:capitalize;">${e.status}</span>
+      </div>
+    </div>`).join('');
+}
+
+function renderTrackerReports() {
+  const el = document.getElementById('tracker-reports-list');
+  const items = trackerRptFilter === 'all' ? sentReports : sentReports.filter(r => r.status === trackerRptFilter);
+  if (!items.length) {
+    el.innerHTML = '<div class="card"><div class="card-body text-muted text-sm">No reports found.</div></div>';
+    return;
+  }
+  el.innerHTML = items.map(r => `
+    <div class="card" style="margin-bottom:0;">
+      <div class="card-body" style="display:flex;justify-content:space-between;align-items:flex-start;gap:1rem;">
+        <div style="flex:1;min-width:0;">
+          <div class="font-semibold" style="font-size:0.95rem;margin-bottom:0.25rem;">${escHtml(r.title)}</div>
+          <div class="text-muted text-sm">${fmtDate(r.created_at)}</div>
+        </div>
+        <span class="badge ${STATUS_BADGE_RPT[r.status] || 'badge-neutral'}" style="flex-shrink:0;text-transform:capitalize;">${r.status}</span>
+      </div>
+    </div>`).join('');
+}
+
+function setTrackerFilter(type, filter, btn) {
+  if (type === 'requests') { trackerReqFilter = filter; renderTrackerRequests(); }
+  else { trackerRptFilter = filter; renderTrackerReports(); }
+  btn.closest('div').querySelectorAll('button').forEach(b => b.className = 'btn btn-sm btn-secondary');
+  btn.className = 'btn btn-sm btn-primary';
+}
+
+async function submitCommsRequest() {
+  const title    = document.getElementById('cr-title').value.trim();
+  const location = document.getElementById('cr-location').value.trim();
+  const start_date = document.getElementById('cr-date').value;
+  const alertEl  = document.getElementById('cr-alert');
   if (!title || !location || !start_date) {
     alertEl.innerHTML = '<div class="alert alert-danger"><span class="alert-icon">❌</span> Title, location, and start date are required.</div>';
     return;
   }
-
   const res = await api('POST', '/api/events', {
-    title, description: desc || null, location, start_date, end_date: end_date || null,
-    participants: participants ? parseInt(participants) : null,
-    notes: notes || null, required_approval_level,
+    title, location, start_date,
+    description: document.getElementById('cr-desc').value.trim() || null,
+    end_date: document.getElementById('cr-date-end').value || null,
+    participants: parseInt(document.getElementById('cr-participants').value) || null,
+    notes: document.getElementById('cr-notes').value.trim() || null,
+    required_approval_level: document.getElementById('cr-approval-level').value,
   });
-
   if (res && res.id) {
-    alertEl.innerHTML = '<div class="alert alert-success"><span class="alert-icon">✅</span> Request submitted successfully.</div>';
+    alertEl.innerHTML = '<div class="alert alert-success"><span class="alert-icon">✅</span> Request submitted.</div>';
     clearCommsRequestForm();
     await loadComms();
-    const stats = await api('GET', '/api/stats');
-    if (stats) document.getElementById('stat-pending').textContent = stats.pending_requests ?? 0;
   } else {
-    alertEl.innerHTML = `<div class="alert alert-danger"><span class="alert-icon">❌</span> ${res?.error || 'Error submitting request.'}</div>`;
+    alertEl.innerHTML = `<div class="alert alert-danger"><span class="alert-icon">❌</span> ${res?.error || 'Error submitting.'}</div>`;
   }
   setTimeout(() => alertEl.innerHTML = '', 4000);
 }
@@ -536,25 +742,38 @@ function clearCommsRequestForm() {
   document.getElementById('cr-approval-level').value = 'district';
 }
 
-async function submitCommsReport() {
-  const title = document.getElementById('crpt-title').value.trim();
-  const body = document.getElementById('crpt-body').value.trim();
-  const alertEl = document.getElementById('crpt-alert');
+function populateReportRequestDropdown() {
+  const sel   = document.getElementById('crpt-request');
+  const noMsg = document.getElementById('crpt-no-requests');
+  if (!sel) return;
+  sel.innerHTML = '<option value="">— Select an approved activity —</option>' +
+    eligibleRequests.map(r =>
+      `<option value="${r.id}">${escHtml(r.title)}${r.start_date ? ' (' + r.start_date + ')' : ''}</option>`
+    ).join('');
+  if (noMsg) noMsg.style.display = eligibleRequests.length ? 'none' : '';
+}
 
+async function submitCommsReport() {
+  const title    = document.getElementById('crpt-title').value.trim();
+  const body     = document.getElementById('crpt-body').value.trim();
+  const reqId    = parseInt(document.getElementById('crpt-request').value) || null;
+  const level    = document.getElementById('crpt-approval-level').value;
+  const alertEl  = document.getElementById('crpt-alert');
   if (!title || !body) {
     alertEl.innerHTML = '<div class="alert alert-danger"><span class="alert-icon">❌</span> Title and body are required.</div>';
     return;
   }
-
-  const res = await api('POST', '/api/reports', { title, body });
+  const res = await api('POST', '/api/reports', {
+    title, body,
+    request_id: reqId,
+    required_approval_level: level,
+  });
   if (res && res.id) {
-    alertEl.innerHTML = '<div class="alert alert-success"><span class="alert-icon">✅</span> Report submitted successfully.</div>';
+    alertEl.innerHTML = '<div class="alert alert-success"><span class="alert-icon">✅</span> Report submitted.</div>';
     clearCommsReportForm();
     await loadComms();
-    const stats = await api('GET', '/api/stats');
-    if (stats) document.getElementById('stat-reports').textContent = stats.submitted_reports ?? 0;
   } else {
-    alertEl.innerHTML = `<div class="alert alert-danger"><span class="alert-icon">❌</span> ${res?.error || 'Error submitting report.'}</div>`;
+    alertEl.innerHTML = `<div class="alert alert-danger"><span class="alert-icon">❌</span> ${res?.error || 'Error submitting.'}</div>`;
   }
   setTimeout(() => alertEl.innerHTML = '', 4000);
 }
@@ -562,108 +781,24 @@ async function submitCommsReport() {
 function clearCommsReportForm() {
   document.getElementById('crpt-title').value = '';
   document.getElementById('crpt-body').value = '';
+  document.getElementById('crpt-request').value = '';
+  document.getElementById('crpt-approval-level').value = 'district';
 }
 
-function renderCommsTracker() {
-  const el = document.getElementById('comms-tracker-list');
-  const STATUS_BADGE_RPT = { submitted: 'badge-info', forwarded: 'badge-warning', closed: 'badge-neutral' };
-  if (!commsTrackerEvts.length && !commsTrackerRpts.length) {
-    el.innerHTML = '<div class="card"><div class="card-body text-muted text-sm">No submissions yet.</div></div>';
-    return;
-  }
-  const evtHtml = commsTrackerEvts.map(e => `
-    <div class="card" style="margin-bottom:0;">
-      <div class="card-body" style="display:flex;justify-content:space-between;align-items:flex-start;gap:1rem;">
-        <div style="flex:1;min-width:0;">
-          <div class="flex gap-2 mb-1">
-            <span class="badge badge-neutral">Event</span>
-            <span class="font-semibold" style="font-size:0.95rem;">${escHtml(e.title)}</span>
-          </div>
-          <div class="text-muted text-sm">Submitted ${fmtDate(e.created_at)} · Needs: ${e.required_approval_level.toUpperCase()}</div>
-          <div class="flex gap-2 mt-2">
-            <span class="badge badge-warning">At: ${e.current_level}</span>
-          </div>
-        </div>
-        <span class="badge ${STATUS_BADGE[e.status] || 'badge-neutral'}" style="flex-shrink:0;text-transform:capitalize;">${e.status}</span>
-      </div>
-    </div>`).join('');
-  const rptHtml = commsTrackerRpts.map(r => `
-    <div class="card" style="margin-bottom:0;">
-      <div class="card-body" style="display:flex;justify-content:space-between;align-items:flex-start;gap:1rem;">
-        <div style="flex:1;min-width:0;">
-          <div class="flex gap-2 mb-1">
-            <span class="badge badge-neutral">Report</span>
-            <span class="font-semibold" style="font-size:0.95rem;">${escHtml(r.title)}</span>
-          </div>
-          <div class="text-muted text-sm">Submitted ${fmtDate(r.created_at)}</div>
-          <div class="text-sm mt-1" style="color:var(--text-secondary);">${escHtml(r.body).slice(0,120)}${r.body && r.body.length > 120 ? '…' : ''}</div>
-        </div>
-        <span class="badge ${STATUS_BADGE_RPT[r.status] || 'badge-neutral'}" style="flex-shrink:0;text-transform:capitalize;">${r.status}</span>
-      </div>
-    </div>`).join('');
-  el.innerHTML = evtHtml + rptHtml;
-}
-
-// ── Approvals (admin leader + group head only) ───────────────────────────────
-
-function renderCommsApprovals() {
-  const el = document.getElementById('comms-approvals-list');
-  if (!commsApprovals.length) {
-    el.innerHTML = '<div class="card"><div class="card-body text-muted text-sm">No pending approvals.</div></div>';
-    return;
-  }
-  el.innerHTML = commsApprovals.map(e => `
-    <div class="request-card" id="approval-card-${e.id}">
-      <div class="request-card-header">
-        <div style="flex:1;min-width:0;">
-          <h4>${escHtml(e.title)}</h4>
-          <div class="meta">
-            ${e.submitter_name ? escHtml(e.submitter_name) + ' · ' : ''}
-            Submitted ${fmtDate(e.created_at)}
-          </div>
-        </div>
-        <span class="badge badge-warning">Awaiting your review</span>
-      </div>
-      ${e.description ? `<div class="text-sm" style="color:var(--text-secondary);">${escHtml(e.description)}</div>` : ''}
-      <div class="text-sm" style="display:flex;gap:1.5rem;flex-wrap:wrap;">
-        ${e.location ? `<span>📍 ${escHtml(e.location)}</span>` : ''}
-        ${e.start_date ? `<span>📅 ${e.start_date}${e.end_date ? ' → ' + e.end_date : ''}</span>` : ''}
-        ${e.participants ? `<span>👥 ${e.participants}</span>` : ''}
-      </div>
-      <div class="text-sm" style="color:var(--text-muted);">
-        Required approval: <strong>${e.required_approval_level.toUpperCase()}</strong>
-      </div>
-      ${e.notes ? `<div class="text-sm" style="color:var(--text-secondary);">Notes: ${escHtml(e.notes)}</div>` : ''}
-      <div id="approval-alert-${e.id}"></div>
-      <div class="flex gap-2" style="margin-top:0.25rem;">
-        <button class="btn btn-success btn-sm" onclick="approveEvent(${e.id})">✅ Approve</button>
-        <button class="btn btn-danger btn-sm" onclick="rejectEvent(${e.id})">❌ Reject</button>
-      </div>
-    </div>`).join('');
-}
+// ── Inbox approvals ──────────────────────────────────────────────────────────
 
 async function approveEvent(id) {
-  const alertEl = document.getElementById(`approval-alert-${id}`);
   const res = await api('PUT', `/api/events/${id}/approve`, { note: '' });
-  if (res && res.id) {
-    toast('Request approved.', 'success');
-    await loadComms();
-  } else {
-    if (alertEl) alertEl.innerHTML = `<div class="alert alert-danger"><span class="alert-icon">❌</span> ${res?.error || 'Failed to approve.'}</div>`;
-  }
+  if (res && res.id) { toast('Request approved.', 'success'); await loadComms(); }
+  else { const el = document.getElementById(`inbox-alert-${id}`); if (el) el.innerHTML = `<div class="alert alert-danger"><span class="alert-icon">❌</span> ${res?.error || 'Failed.'}</div>`; }
 }
 
 async function rejectEvent(id) {
   const note = prompt('Reason for rejection (optional):') ?? null;
-  if (note === null) return; // cancelled
-  const alertEl = document.getElementById(`approval-alert-${id}`);
+  if (note === null) return;
   const res = await api('PUT', `/api/events/${id}/reject`, { note: note.trim() || null });
-  if (res && res.id) {
-    toast('Request rejected.', 'danger');
-    await loadComms();
-  } else {
-    if (alertEl) alertEl.innerHTML = `<div class="alert alert-danger"><span class="alert-icon">❌</span> ${res?.error || 'Failed to reject.'}</div>`;
-  }
+  if (res && res.id) { toast('Request rejected.', 'danger'); await loadComms(); }
+  else { const el = document.getElementById(`inbox-alert-${id}`); if (el) el.innerHTML = `<div class="alert alert-danger"><span class="alert-icon">❌</span> ${res?.error || 'Failed.'}</div>`; }
 }
 
 // ── Group user management (group leaders only) ────────────────────────────────
@@ -711,45 +846,35 @@ function openAddMemberModal() {
   ['am-name','am-username','am-password','am-email','am-role-title'].forEach(id => {
     document.getElementById(id).value = '';
   });
-  // Pre-select the actor's color if they have one
   const colorSel = document.getElementById('am-color');
-  if (userData && userData.color) {
-    colorSel.value = userData.color;
-    colorSel.disabled = true;
-  } else {
-    colorSel.value = '';
-    colorSel.disabled = false;
-  }
+  if (userData && userData.color) { colorSel.value = userData.color; colorSel.disabled = true; }
+  else { colorSel.value = ''; colorSel.disabled = false; }
   document.getElementById('am-alert').innerHTML = '';
   document.getElementById('am-modal').classList.add('open');
 }
 
-function closeAddMemberModal() {
-  document.getElementById('am-modal').classList.remove('open');
-}
+function closeAddMemberModal() { document.getElementById('am-modal').classList.remove('open'); }
 
 async function saveNewMember() {
-  const name     = document.getElementById('am-name').value.trim();
-  const username = document.getElementById('am-username').value.trim();
-  const password = document.getElementById('am-password').value;
-  const email    = document.getElementById('am-email').value.trim() || null;
-  const color    = document.getElementById('am-color').value || null;
+  const name      = document.getElementById('am-name').value.trim();
+  const username  = document.getElementById('am-username').value.trim();
+  const password  = document.getElementById('am-password').value;
+  const email     = document.getElementById('am-email').value.trim() || null;
+  const color     = document.getElementById('am-color').value || null;
   const roleTitle = document.getElementById('am-role-title').value.trim() || null;
-  const alertEl  = document.getElementById('am-alert');
-
+  const alertEl   = document.getElementById('am-alert');
   if (!name || !username || !password) {
     alertEl.innerHTML = '<div class="alert alert-danger"><span class="alert-icon">❌</span> Name, username, and password are required.</div>';
     return;
   }
-
   const res = await api('POST', '/api/users', { name, username, password, email, color, role_title: roleTitle });
   if (res && res.id) {
-    toast('Member added successfully.', 'success');
+    toast('Member added.', 'success');
     closeAddMemberModal();
     allGroupUsers = await api('GET', '/api/users') || [];
     renderGroupUsers(allGroupUsers);
   } else {
-    alertEl.innerHTML = `<div class="alert alert-danger"><span class="alert-icon">❌</span> ${res?.error || 'Failed to add member.'}</div>`;
+    alertEl.innerHTML = `<div class="alert alert-danger"><span class="alert-icon">❌</span> ${res?.error || 'Failed.'}</div>`;
   }
 }
 
@@ -760,9 +885,7 @@ async function confirmDeleteMember(userId, name) {
     toast('Member deleted.', 'success');
     allGroupUsers = await api('GET', '/api/users') || [];
     renderGroupUsers(allGroupUsers);
-  } else {
-    toast(res?.error || 'Failed to delete member.', 'danger');
-  }
+  } else { toast(res?.error || 'Failed to delete.', 'danger'); }
 }
 
 let gmEditingId = null;
@@ -779,10 +902,7 @@ function openGmModal(userId) {
   document.getElementById('gm-modal').classList.add('open');
 }
 
-function closeGmModal() {
-  document.getElementById('gm-modal').classList.remove('open');
-  gmEditingId = null;
-}
+function closeGmModal() { document.getElementById('gm-modal').classList.remove('open'); gmEditingId = null; }
 
 async function saveGmUser() {
   const body = {
@@ -792,23 +912,25 @@ async function saveGmUser() {
     password:   document.getElementById('gm-password').value || null,
   };
   if (!body.name) { toast('Name is required.', 'danger'); return; }
-
   const res = await api('PUT', `/api/users/${gmEditingId}`, body);
   if (res && res.id) {
     toast('User updated.', 'success');
     closeGmModal();
     allGroupUsers = await api('GET', '/api/users') || [];
     renderGroupUsers(allGroupUsers);
-  } else {
-    toast(res?.error || 'Failed to save.', 'danger');
-  }
+  } else { toast(res?.error || 'Failed.', 'danger'); }
 }
 
 // ── Utilities ─────────────────────────────────────────────────────────────────
 const SECTION_TITLES = {
-  home:  ['Dashboard',       'Leader overview'],
-  comms: ['Communications',  'Send, receive and track'],
-  group: ['My Group',        'View and edit your group'],
+  home:             ['Dashboard',       'Leader overview'],
+  'send-request':   ['Send Request',    'Submit an event request'],
+  'send-report':    ['Send Report',     'Submit a report'],
+  'inbox-requests': ['Received Requests','Review event requests from your group'],
+  'inbox-reports':  ['Received Reports', 'Review reports from your group'],
+  'tracker-requests':['Request Tracker','Track your submitted requests'],
+  'tracker-reports': ['Report Tracker', 'Track your submitted reports'],
+  group:            ['My Group',        'View and edit your group'],
 };
 
 let groupTabFilter = 'all';
@@ -828,7 +950,7 @@ function showGroupTab(tab, btn) {
 
 function showSection(id, btn) {
   document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
-  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+  document.querySelectorAll('.nav-item, .nav-sub-item').forEach(n => n.classList.remove('active'));
   document.getElementById('sec-' + id).classList.add('active');
   if (btn) btn.classList.add('active');
   const t = SECTION_TITLES[id] || [id, ''];
