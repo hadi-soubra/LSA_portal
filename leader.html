@@ -476,11 +476,11 @@ const isNoColorGroupLeader = isGroupLeader && !userData.color;
     document.getElementById('nav-group-section').style.display = '';
   }
 
-  // Show inbox nav for no-color group leaders (they receive event approval requests)
+  // Show inbox nav for no-color group leaders (they receive requests and reports)
   if (isNoColorGroupLeader) {
     document.getElementById('nav-inbox-label').style.display = '';
     document.getElementById('nav-inbox-requests').style.display = '';
-    // Reports are approved only by admin-dashboard users; no inbox-reports for leaders
+    document.getElementById('nav-inbox-reports').style.display = '';
   }
 
   const stats = await api('GET', '/api/stats');
@@ -502,22 +502,26 @@ const isNoColorGroupLeader = isGroupLeader && !userData.color;
 const STATUS_BADGE     = { pending: 'badge-warning', approved: 'badge-success', rejected: 'badge-danger' };
 const STATUS_BADGE_RPT = { pending: 'badge-warning', approved: 'badge-success', rejected: 'badge-danger' };
 
-let sentRequests = [], sentReports = [], inboxRequests = [], inboxReqHistory = [];
+let sentRequests = [], sentReports = [], inboxRequests = [], inboxReqHistory = [], inboxReports = [], inboxRptHistory = [];
 let trackerReqFilter = 'all', trackerRptFilter = 'all';
 let eligibleRequests = [];
 
 async function loadComms() {
-  const [evts, rpts, reqHist, eligible] = await Promise.all([
+  const [evts, rpts, reqHist, rptHist, eligible] = await Promise.all([
     api('GET', '/api/events'),
     api('GET', '/api/reports'),
     isNoColorGroupLeader ? api('GET', '/api/events/inbox-history') : Promise.resolve([]),
+    isNoColorGroupLeader ? api('GET', '/api/reports/inbox-history') : Promise.resolve([]),
     api('GET', '/api/reports/eligible-requests'),
   ]);
   const allEvts = evts || [];
+  const allRpts = rpts || [];
   sentRequests     = allEvts.filter(e => e.submitted_by === userData.id && !e.pending_my_review);
-  sentReports      = (rpts || []).filter(r => r.submitted_by === userData.id);
+  sentReports      = allRpts.filter(r => r.submitted_by === userData.id && !r.pending_my_review);
   inboxRequests    = allEvts.filter(e => e.pending_my_review);
   inboxReqHistory  = reqHist || [];
+  inboxReports     = allRpts.filter(r => r.pending_my_review);
+  inboxRptHistory  = rptHist || [];
   eligibleRequests = Array.isArray(eligible) ? eligible : [];
   populateReportRequestDropdown();
 
@@ -525,6 +529,9 @@ async function loadComms() {
     const b = document.getElementById('inbox-req-badge');
     b.textContent = inboxRequests.length;
     b.style.display = '';
+    document.getElementById('hdr-badge-dot').style.display = '';
+  }
+  if (isNoColorGroupLeader && inboxReports.length > 0) {
     document.getElementById('hdr-badge-dot').style.display = '';
   }
 
@@ -653,13 +660,47 @@ function renderInboxRequestsHistory() {
 function renderInboxReportsPending() {
   const el = document.getElementById('inbox-rpt-pending-list');
   if (!el) return;
-  el.innerHTML = '<div class="card"><div class="card-body text-muted text-sm">No pending reports. Reports are reviewed by district-level administrators.</div></div>';
+  if (!inboxReports.length) {
+    el.innerHTML = '<div class="card"><div class="card-body text-muted text-sm">No pending reports.</div></div>';
+    return;
+  }
+  el.innerHTML = inboxReports.map(r => `
+    <div class="request-card" id="inbox-rpt-card-${r.id}">
+      <div class="request-card-header">
+        <div style="flex:1;min-width:0;">
+          <h4>${escHtml(r.title)}</h4>
+          <div class="meta">${r.submitter_name ? escHtml(r.submitter_name) + ' · ' : ''}${fmtDate(r.created_at)}</div>
+        </div>
+        <span class="badge badge-warning">Awaiting review</span>
+      </div>
+      ${r.body ? `<div class="text-sm" style="color:var(--text-secondary);">${escHtml(r.body).slice(0,200)}${r.body.length > 200 ? '…' : ''}</div>` : ''}
+      <div class="text-sm text-muted">Approval needed: <strong>${r.required_approval_level.toUpperCase()}</strong></div>
+      <div id="inbox-rpt-alert-${r.id}"></div>
+      <div class="flex gap-2" style="margin-top:0.5rem;">
+        <button class="btn btn-success btn-sm" onclick="approveReport(${r.id})">✅ Approve</button>
+        <button class="btn btn-danger btn-sm" onclick="rejectReport(${r.id})">❌ Reject</button>
+      </div>
+    </div>`).join('');
 }
 
 function renderInboxReportsHistory() {
   const el = document.getElementById('inbox-rpt-history-list');
   if (!el) return;
-  el.innerHTML = '<div class="card"><div class="card-body text-muted text-sm">No report history.</div></div>';
+  if (!inboxRptHistory.length) {
+    el.innerHTML = '<div class="card"><div class="card-body text-muted text-sm">No history yet.</div></div>';
+    return;
+  }
+  el.innerHTML = inboxRptHistory.map(r => `
+    <div class="card" style="margin-bottom:0;">
+      <div class="card-body" style="display:flex;justify-content:space-between;align-items:flex-start;gap:1rem;">
+        <div style="flex:1;min-width:0;">
+          <div class="font-semibold" style="font-size:0.95rem;margin-bottom:0.25rem;">${escHtml(r.title)}</div>
+          <div class="text-muted text-sm">From: ${escHtml(r.submitter_name || '—')}${r.submitter_group ? ' · ' + escHtml(r.submitter_group) : ''}</div>
+          <div class="text-muted text-sm">${fmtDate(r.updated_at || r.created_at)}</div>
+        </div>
+        <span class="badge ${STATUS_BADGE_RPT[r.status] || 'badge-neutral'}" style="flex-shrink:0;text-transform:capitalize;">${r.status}</span>
+      </div>
+    </div>`).join('');
 }
 
 function renderTrackerRequests() {
@@ -799,6 +840,20 @@ async function rejectEvent(id) {
   const res = await api('PUT', `/api/events/${id}/reject`, { note: note.trim() || null });
   if (res && res.id) { toast('Request rejected.', 'danger'); await loadComms(); }
   else { const el = document.getElementById(`inbox-alert-${id}`); if (el) el.innerHTML = `<div class="alert alert-danger"><span class="alert-icon">❌</span> ${res?.error || 'Failed.'}</div>`; }
+}
+
+async function approveReport(id) {
+  const res = await api('PUT', `/api/reports/${id}/approve`, { note: '' });
+  if (res && res.id) { toast('Report approved.', 'success'); await loadComms(); }
+  else { const el = document.getElementById(`inbox-rpt-alert-${id}`); if (el) el.innerHTML = `<div class="alert alert-danger"><span class="alert-icon">❌</span> ${res?.error || 'Failed.'}</div>`; }
+}
+
+async function rejectReport(id) {
+  const note = prompt('Reason for rejection (optional):') ?? null;
+  if (note === null) return;
+  const res = await api('PUT', `/api/reports/${id}/reject`, { note: note.trim() || null });
+  if (res && res.message) { toast('Report rejected.', 'danger'); await loadComms(); }
+  else { const el = document.getElementById(`inbox-rpt-alert-${id}`); if (el) el.innerHTML = `<div class="alert alert-danger"><span class="alert-icon">❌</span> ${res?.error || 'Failed.'}</div>`; }
 }
 
 // ── Group user management (group leaders only) ────────────────────────────────

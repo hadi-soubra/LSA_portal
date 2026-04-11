@@ -114,10 +114,9 @@ def _submit_start_level(actor: dict) -> str:
 
 def _report_start_level(actor: dict) -> str:
     """Level at which a report submission starts.
-    Reports are approved only by admin-dashboard users (district+),
-    so any leader-level submission jumps directly to 'district'."""
+    Uses the same forwarding chain as event requests."""
     if actor['dashboard'] == 'leader':
-        return 'district'
+        return _submit_start_level(actor)
     return _next_level(actor['level'])
 
 # ── Business-logic constants ─────────────────────────────────────────────────
@@ -359,10 +358,35 @@ def _reports_in_scope(actor: dict, db) -> list[dict]:
     lvl = actor['level']
 
     if actor['dashboard'] == 'leader':
-        rows = db.execute(
+        own_rows = db.execute(
             _RPT_SELECT + ' WHERE r.submitted_by = ? ORDER BY r.created_at DESC',
             (actor['id'],)).fetchall()
-        return [dict(r) for r in rows]
+        result = [dict(r) for r in own_rows]
+
+        # group_admin (no color) sees reports pending at group_admin level from their group
+        if lvl == 'group_admin' and not actor.get('color'):
+            review = db.execute(
+                _RPT_SELECT + " WHERE r.current_level='group_admin' AND r.status='pending'"
+                              " AND u.group_id=? AND r.submitted_by!=?"
+                              " ORDER BY r.created_at DESC",
+                (actor['group_id'], actor['id'])).fetchall()
+            for r in review:
+                d = dict(r)
+                d['pending_my_review'] = True
+                result.append(d)
+        # no-color group leader sees reports pending at group level from their group
+        elif lvl == 'group' and not actor.get('color'):
+            review = db.execute(
+                _RPT_SELECT + " WHERE r.current_level='group' AND r.status='pending'"
+                              " AND u.group_id=? AND r.submitted_by!=?"
+                              " ORDER BY r.created_at DESC",
+                (actor['group_id'], actor['id'])).fetchall()
+            for r in review:
+                d = dict(r)
+                d['pending_my_review'] = True
+                result.append(d)
+
+        return result
 
     # Admin review queue — pending reports at actor's level
     review_rows = []
@@ -887,7 +911,10 @@ def submit_report():
 @require_auth
 def approve_report(report_id):
     actor = g.user
-    if actor['dashboard'] != 'admin':
+    is_leader_reviewer = (actor['dashboard'] == 'leader'
+                          and not actor.get('color')
+                          and actor['level'] in ('group_admin', 'group'))
+    if actor['dashboard'] != 'admin' and not is_leader_reviewer:
         return jsonify({'error': 'Forbidden'}), 403
 
     db = get_db()
@@ -927,7 +954,10 @@ def approve_report(report_id):
 @require_auth
 def reject_report(report_id):
     actor = g.user
-    if actor['dashboard'] != 'admin':
+    is_leader_reviewer = (actor['dashboard'] == 'leader'
+                          and not actor.get('color')
+                          and actor['level'] in ('group_admin', 'group'))
+    if actor['dashboard'] != 'admin' and not is_leader_reviewer:
         return jsonify({'error': 'Forbidden'}), 403
 
     db = get_db()
