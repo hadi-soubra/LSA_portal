@@ -83,13 +83,16 @@ CREATE TABLE IF NOT EXISTS content (
 );
 
 CREATE TABLE IF NOT EXISTS reports (
-    id            INTEGER PRIMARY KEY AUTOINCREMENT,
-    title         TEXT NOT NULL,
-    body          TEXT NOT NULL,
-    submitted_by  INTEGER NOT NULL REFERENCES users(id),
-    current_level TEXT NOT NULL,
-    status        TEXT NOT NULL DEFAULT 'submitted' CHECK(status IN ('submitted','forwarded','closed')),
-    created_at    DATETIME DEFAULT CURRENT_TIMESTAMP
+    id                      INTEGER PRIMARY KEY AUTOINCREMENT,
+    title                   TEXT NOT NULL,
+    body                    TEXT NOT NULL,
+    submitted_by            INTEGER NOT NULL REFERENCES users(id),
+    request_id              INTEGER REFERENCES event_requests(id),
+    required_approval_level TEXT NOT NULL CHECK(required_approval_level IN ('group','district','gc','ec')),
+    current_level           TEXT NOT NULL,
+    status                  TEXT NOT NULL DEFAULT 'pending' CHECK(status IN ('pending','approved','rejected')),
+    created_at              DATETIME DEFAULT CURRENT_TIMESTAMP,
+    updated_at              DATETIME DEFAULT CURRENT_TIMESTAMP
 );
 
 CREATE TABLE IF NOT EXISTS report_history (

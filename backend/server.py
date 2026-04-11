@@ -102,16 +102,23 @@ def _can_submit(actor: dict) -> bool:
 
 
 def _submit_start_level(actor: dict) -> str:
-    """Level at which a submission by this actor starts."""
-    if actor['dashboard'] == 'admin':
-        return actor['level']   # district or gc
-    # Colored group leaders: must pass through admin leader review first
-    if actor['level'] == 'group' and actor['color']:
+    """Level at which an event request by this actor starts.
+    Always one level above the submitter — no self-approval ever."""
+    # Colored group leaders: _next_level('group') would skip to district,
+    # so they must explicitly start at group_admin first.
+    if actor['level'] == 'group' and actor.get('color'):
         return 'group_admin'
-    # Admin leader's own submissions go directly to the group head
-    if actor['level'] == 'group_admin':
-        return 'group'
-    return 'group'
+    # Everyone else: skip their own level entirely.
+    return _next_level(actor['level'])
+
+
+def _report_start_level(actor: dict) -> str:
+    """Level at which a report submission starts.
+    Reports are approved only by admin-dashboard users (district+),
+    so any leader-level submission jumps directly to 'district'."""
+    if actor['dashboard'] == 'leader':
+        return 'district'
+    return _next_level(actor['level'])
 
 # ── Business-logic constants ─────────────────────────────────────────────────
 
@@ -333,61 +340,57 @@ def _events_in_scope(actor: dict, db) -> list[dict]:
     return result
 
 
+_RPT_SELECT = '''
+    SELECT r.*,
+           u.name  AS submitter_name,
+           u.color AS submitter_color,
+           e.title AS request_title,
+           g.name  AS submitter_group,
+           d.name  AS submitter_district
+    FROM reports r
+    JOIN users u ON r.submitted_by = u.id
+    LEFT JOIN event_requests e ON r.request_id = e.id
+    LEFT JOIN groups    g ON u.group_id    = g.id
+    LEFT JOIN districts d ON u.district_id = d.id
+'''
+
 def _reports_in_scope(actor: dict, db) -> list[dict]:
     """Reports visible to actor."""
     lvl = actor['level']
 
     if actor['dashboard'] == 'leader':
         rows = db.execute(
-            '''SELECT r.*, u.name AS submitter_name
-               FROM reports r JOIN users u ON r.submitted_by = u.id
-               WHERE r.submitted_by = ?
-               ORDER BY r.created_at DESC''',
+            _RPT_SELECT + ' WHERE r.submitted_by = ? ORDER BY r.created_at DESC',
             (actor['id'],)).fetchall()
         return [dict(r) for r in rows]
 
-    # Admin review queue
+    # Admin review queue — pending reports at actor's level
     review_rows = []
     if lvl == 'group':
         review_rows = db.execute(
-            '''SELECT r.*, u.name AS submitter_name
-               FROM reports r JOIN users u ON r.submitted_by = u.id
-               WHERE r.current_level = 'group' AND u.group_id = ?
-               ORDER BY r.created_at DESC''',
+            _RPT_SELECT + " WHERE r.current_level='group' AND u.group_id=? ORDER BY r.created_at DESC",
             (actor['group_id'],)).fetchall()
 
     elif lvl == 'district':
         review_rows = db.execute(
-            '''SELECT r.*, u.name AS submitter_name
-               FROM reports r JOIN users u ON r.submitted_by = u.id
-               WHERE r.current_level = 'district' AND u.district_id = ?
-               ORDER BY r.created_at DESC''',
+            _RPT_SELECT + " WHERE r.current_level='district' AND u.district_id=? ORDER BY r.created_at DESC",
             (actor['district_id'],)).fetchall()
 
     elif lvl == 'gc':
         review_rows = db.execute(
-            '''SELECT r.*, u.name AS submitter_name
-               FROM reports r JOIN users u ON r.submitted_by = u.id
-               WHERE r.current_level = 'gc'
-               ORDER BY r.created_at DESC''').fetchall()
+            _RPT_SELECT + " WHERE r.current_level='gc' ORDER BY r.created_at DESC").fetchall()
 
     elif lvl == 'ec':
         review_rows = db.execute(
-            '''SELECT r.*, u.name AS submitter_name
-               FROM reports r JOIN users u ON r.submitted_by = u.id
-               WHERE r.current_level = 'ec'
-               ORDER BY r.created_at DESC''').fetchall()
+            _RPT_SELECT + " WHERE r.current_level='ec' ORDER BY r.created_at DESC").fetchall()
 
     result = [dict(r) for r in review_rows]
 
-    # District/GC admins who can submit see their own submissions too
+    # District/GC admins who can submit also see their own submissions
     if lvl in ('district', 'gc'):
         review_ids = {r['id'] for r in result}
         own = db.execute(
-            '''SELECT r.*, u.name AS submitter_name
-               FROM reports r JOIN users u ON r.submitted_by = u.id
-               WHERE r.submitted_by = ?
-               ORDER BY r.created_at DESC''',
+            _RPT_SELECT + ' WHERE r.submitted_by = ? ORDER BY r.created_at DESC',
             (actor['id'],)).fetchall()
         for r in own:
             if r['id'] not in review_ids:
@@ -476,7 +479,7 @@ def get_stats():
         stats = {
             'pending_requests':    len([e for e in review_evts if e['status'] == 'pending']),
             'total_managed_users': len([u for u in managed if u.get('editable')]),
-            'pending_reports':     len([r for r in review_rpts if r['status'] != 'closed']),
+            'pending_reports':     len([r for r in review_rpts if r['status'] == 'pending']),
         }
 
         if actor['level'] == 'district':
@@ -815,6 +818,25 @@ def list_reports():
     return jsonify(_reports_in_scope(g.user, get_db()))
 
 
+@app.route('/api/reports/eligible-requests')
+@require_auth
+def eligible_requests_for_report():
+    """Approved event_requests that belong to the actor and have no report yet."""
+    actor = g.user
+    if not _can_submit(actor):
+        return jsonify({'error': 'Forbidden'}), 403
+    db = get_db()
+    rows = db.execute('''
+        SELECT e.id, e.title, e.start_date, e.location
+        FROM event_requests e
+        WHERE e.submitted_by = ?
+          AND e.status = 'approved'
+          AND e.id NOT IN (SELECT request_id FROM reports WHERE request_id IS NOT NULL)
+        ORDER BY e.start_date DESC
+    ''', (actor['id'],)).fetchall()
+    return jsonify([dict(r) for r in rows])
+
+
 @app.route('/api/reports', methods=['POST'])
 @require_auth
 def submit_report():
@@ -825,22 +847,45 @@ def submit_report():
     data = request.get_json() or {}
     if not data.get('title') or not data.get('body'):
         return jsonify({'error': 'title and body are required'}), 400
+    if not data.get('required_approval_level'):
+        return jsonify({'error': 'required_approval_level is required'}), 400
+    if data['required_approval_level'] not in ('group', 'district', 'gc', 'ec'):
+        return jsonify({'error': 'required_approval_level must be group/district/gc/ec'}), 400
 
-    start_level = _submit_start_level(actor)
-
+    request_id = data.get('request_id') or None
     db = get_db()
+
+    # Validate the linked request if provided
+    if request_id:
+        req = db.execute(
+            'SELECT id FROM event_requests WHERE id=? AND submitted_by=? AND status=?',
+            (request_id, actor['id'], 'approved')).fetchone()
+        if not req:
+            return jsonify({'error': 'Invalid or ineligible request'}), 400
+        existing = db.execute(
+            'SELECT id FROM reports WHERE request_id=?', (request_id,)).fetchone()
+        if existing:
+            return jsonify({'error': 'A report already exists for this request'}), 400
+
+    start_level = _report_start_level(actor)
+    now = datetime.utcnow().isoformat()
+
     db.execute(
-        'INSERT INTO reports (title,body,submitted_by,current_level,status) VALUES (?,?,?,?,?)',
-        (data['title'], data['body'], actor['id'], start_level, 'submitted'))
+        '''INSERT INTO reports
+           (title, body, submitted_by, request_id, required_approval_level,
+            current_level, status, created_at, updated_at)
+           VALUES (?,?,?,?,?,?,?,?,?)''',
+        (data['title'], data['body'], actor['id'], request_id,
+         data['required_approval_level'], start_level, 'pending', now, now))
     db.commit()
     new_id = db.execute('SELECT last_insert_rowid()').fetchone()[0]
     return jsonify(dict(db.execute('SELECT * FROM reports WHERE id=?',
                                    (new_id,)).fetchone())), 201
 
 
-@app.route('/api/reports/<int:report_id>/forward', methods=['PUT'])
+@app.route('/api/reports/<int:report_id>/approve', methods=['PUT'])
 @require_auth
-def forward_report(report_id):
+def approve_report(report_id):
     actor = g.user
     if actor['dashboard'] != 'admin':
         return jsonify({'error': 'Forbidden'}), 403
@@ -851,37 +896,102 @@ def forward_report(report_id):
         return jsonify({'error': 'Not found'}), 404
     report = dict(report)
 
+    if report['status'] != 'pending':
+        return jsonify({'error': 'Report is already resolved'}), 400
     if report['current_level'] != actor['level']:
         return jsonify({'error': 'Report is not at your level'}), 403
 
-    nxt = _next_level(report['current_level'])
-    if not nxt:
-        return jsonify({'error': 'Already at the top level'}), 400
-
     note = (request.get_json() or {}).get('note', '')
-    db.execute('UPDATE reports SET current_level=?,status=? WHERE id=?',
-               (nxt, 'forwarded', report_id))
-    db.execute(
-        'INSERT INTO report_history (report_id,action,actor_id,forwarded_to_level,note) VALUES (?,?,?,?,?)',
-        (report_id, 'forwarded', actor['id'], nxt, note))
+    now  = datetime.utcnow().isoformat()
+
+    if report['current_level'] == report['required_approval_level']:
+        db.execute('UPDATE reports SET status=?,updated_at=? WHERE id=?',
+                   ('approved', now, report_id))
+        db.execute(
+            'INSERT INTO report_history (report_id,action,actor_id,note) VALUES (?,?,?,?)',
+            (report_id, 'approved', actor['id'], note))
+    else:
+        nxt = _next_level(report['current_level'])
+        db.execute('UPDATE reports SET current_level=?,updated_at=? WHERE id=?',
+                   (nxt, now, report_id))
+        db.execute(
+            'INSERT INTO report_history (report_id,action,actor_id,forwarded_to_level,note) VALUES (?,?,?,?,?)',
+            (report_id, f'forwarded_to_{nxt}', actor['id'], nxt, note))
+
     db.commit()
-    return jsonify(dict(db.execute('SELECT * FROM reports WHERE id=?',
-                                   (report_id,)).fetchone()))
+    updated = dict(db.execute('SELECT * FROM reports WHERE id=?', (report_id,)).fetchone())
+    return jsonify(updated)
 
 
-@app.route('/api/reports/<int:report_id>/close', methods=['PUT'])
+@app.route('/api/reports/<int:report_id>/reject', methods=['PUT'])
 @require_auth
-def close_report(report_id):
+def reject_report(report_id):
     actor = g.user
     if actor['dashboard'] != 'admin':
         return jsonify({'error': 'Forbidden'}), 403
 
     db = get_db()
-    db.execute('UPDATE reports SET status=? WHERE id=?', ('closed', report_id))
+    report = db.execute('SELECT * FROM reports WHERE id=?', (report_id,)).fetchone()
+    if not report:
+        return jsonify({'error': 'Not found'}), 404
+    if dict(report)['current_level'] != actor['level']:
+        return jsonify({'error': 'Report is not at your level'}), 403
+
+    note = (request.get_json() or {}).get('note', '')
+    now  = datetime.utcnow().isoformat()
+    db.execute('UPDATE reports SET status=?,updated_at=? WHERE id=?',
+               ('rejected', now, report_id))
+    db.execute(
+        'INSERT INTO report_history (report_id,action,actor_id,note) VALUES (?,?,?,?)',
+        (report_id, 'rejected', actor['id'], note))
     db.commit()
-    return jsonify({'message': 'Report closed'})
+    return jsonify({'message': 'Report rejected'})
 
 # ── PROFILE ───────────────────────────────────────────────────────────────────
+
+@app.route('/api/events/inbox-history')
+@require_auth
+def events_inbox_history():
+    """Events this user has acted on as a reviewer (not their own submissions)."""
+    actor = g.user
+    db = get_db()
+    rows = db.execute('''
+        SELECT DISTINCT r.*, u.name AS submitter_name, u.color AS submitter_color,
+               g.name AS submitter_group, d.name AS submitter_district
+        FROM event_requests r
+        JOIN users u ON r.submitted_by = u.id
+        LEFT JOIN groups g ON u.group_id = g.id
+        LEFT JOIN districts d ON u.district_id = d.id
+        WHERE r.id IN (
+            SELECT DISTINCT request_id FROM event_request_history WHERE actor_id = ?
+        ) AND r.submitted_by != ?
+        ORDER BY r.updated_at DESC
+    ''', (actor['id'], actor['id'])).fetchall()
+    return jsonify([dict(r) for r in rows])
+
+
+@app.route('/api/reports/inbox-history')
+@require_auth
+def reports_inbox_history():
+    """Reports this user has acted on as a reviewer (not their own submissions)."""
+    actor = g.user
+    db = get_db()
+    rows = db.execute('''
+        SELECT DISTINCT r.*, u.name AS submitter_name, u.color AS submitter_color,
+               e.title AS request_title,
+               g.name AS submitter_group, d.name AS submitter_district
+        FROM reports r
+        JOIN users u ON r.submitted_by = u.id
+        LEFT JOIN event_requests e ON r.request_id = e.id
+        LEFT JOIN groups g ON u.group_id = g.id
+        LEFT JOIN districts d ON u.district_id = d.id
+        WHERE r.id IN (
+            SELECT DISTINCT report_id FROM report_history WHERE actor_id = ?
+        ) AND r.submitted_by != ?
+        ORDER BY r.updated_at DESC
+    ''', (actor['id'], actor['id'])).fetchall()
+    return jsonify([dict(r) for r in rows])
+
 
 @app.route('/api/profile', methods=['PUT'])
 @require_auth
