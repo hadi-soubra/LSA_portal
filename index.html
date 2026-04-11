@@ -79,7 +79,7 @@
                 placeholder="Enter your password" autocomplete="current-password"
                 required
               />
-              <button type="button" class="pw-toggle-btn" onclick="togglePw()">👁️</button>
+              <button type="button" class="pw-toggle-btn" id="pw-toggle-btn" onclick="togglePw()">show</button>
             </div>
           </div>
 
@@ -155,7 +155,10 @@
 
     function togglePw() {
       const pw = document.getElementById('password');
-      pw.type = pw.type === 'password' ? 'text' : 'password';
+      const btn = document.getElementById('pw-toggle-btn');
+      const isHidden = pw.type === 'password';
+      pw.type = isHidden ? 'text' : 'password';
+      btn.textContent = isHidden ? 'hide' : 'show';
     }
 
     // ── Credentials panel ──────────────────────────────────────────────────────
