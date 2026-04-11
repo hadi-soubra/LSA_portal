@@ -69,12 +69,6 @@
         <h2 id="section-title">Dashboard</h2>
         <p id="section-subtitle">Leader overview</p>
       </div>
-      <div class="header-actions">
-        <button class="icon-btn" onclick="showSection('comms', null)" title="Communications">
-          📡 <span class="badge-dot" id="hdr-badge-dot" style="display:none;"></span>
-        </button>
-        <div class="header-avatar" id="header-avatar">?</div>
-      </div>
     </header>
 
     <div class="content">
@@ -462,7 +456,6 @@ const isNoColorGroupLeader = isGroupLeader && !userData.color;
   if (userData) {
     const initials = userData.name.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase();
     document.getElementById('user-avatar').textContent = initials;
-    document.getElementById('header-avatar').textContent = initials;
     document.getElementById('user-name').textContent = userData.name;
     const colorTag = userData.color ? ` · ${userData.color.charAt(0).toUpperCase() + userData.color.slice(1)}` : '';
     document.getElementById('user-role-label').textContent =

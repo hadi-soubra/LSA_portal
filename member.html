@@ -52,9 +52,6 @@
         <h2 id="section-title">Dashboard</h2>
         <p id="section-subtitle">Welcome back!</p>
       </div>
-      <div class="header-actions">
-        <div class="header-avatar" id="header-avatar">?</div>
-      </div>
     </header>
 
     <div class="content">
@@ -235,7 +232,6 @@ async function api(method, path, body) {
   if (userData) {
     const initials = userData.name.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase();
     document.getElementById('user-avatar').textContent = initials;
-    document.getElementById('header-avatar').textContent = initials;
     document.getElementById('user-name').textContent = userData.name;
     document.getElementById('section-subtitle').textContent = `Welcome back, ${userData.name.split(' ')[0]}!`;
     // Profile section

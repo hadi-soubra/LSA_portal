@@ -150,12 +150,6 @@
         <h2 id="section-title">Dashboard</h2>
         <p id="section-subtitle">National overview</p>
       </div>
-      <div class="header-actions">
-        <button class="btn btn-sm btn-primary" onclick="showSection('inbox-requests', null)">
-          📝 Requests <span id="header-badge" style="background:rgba(255,255,255,0.25);border-radius:99px;padding:0 6px;margin-left:4px;display:none;">0</span>
-        </button>
-        <div class="header-avatar" id="header-avatar">?</div>
-      </div>
     </header>
 
     <div class="content">
@@ -315,7 +309,6 @@ let allEvents = [], allReports = [], allUsers = [];
   if (userData) {
     const initials = userData.name.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase();
     document.getElementById('user-avatar').textContent = initials;
-    document.getElementById('header-avatar').textContent = initials;
     document.getElementById('user-name').textContent = userData.name;
     document.getElementById('user-role-label').textContent =
       userData.role_title || 'EC President';
