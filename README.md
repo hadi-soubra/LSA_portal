@@ -173,9 +173,6 @@ Reports submitted upward (leader → district → GC → EC). Each report tracks
 
 Status: `submitted` → `forwarded` → `closed`
 
-### `content`
-Content pushed downward by higher levels (activities, resources, training, notifications). Supports targeting by color and recipient type.
-
 ### `event_request_history` / `report_history`
 Audit trail tables — every approve/reject/forward action is logged with actor, timestamp, and optional note.
 
@@ -229,24 +226,7 @@ All endpoints under `/api/`. Protected endpoints require `Authorization: Bearer 
 
 ---
 
-## Demo Accounts
-
-Default password for all seeded accounts is `123`.
-
-### Named test accounts (non-standard passwords)
-
-| Username | Password | Level | Color | Dashboard |
-|---|---|---|---|---|
-| `member` | `member123` | member | green | member.html |
-| `leader` | `leader123` | group | green | leader.html |
-| `group_leader` | `group123` | group | none | leader.html |
-| `red_leader` | `leader123` | group | red | leader.html |
-| `dist_bei_green` | `dist123` | district | green | district.html |
-| `gc_commissioner` | `gc123` | gc | none | gc.html |
-| `gc_green` | `gc123` | gc | green | gc.html |
-| `ec_president` | `ec123` | ec | none | ec.html |
-
-### Seeded accounts (password: `123`)
+### Demo accounts (password: `123`)
 
 The seed generates usernames following these patterns:
 
