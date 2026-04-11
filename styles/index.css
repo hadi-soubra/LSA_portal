@@ -37,13 +37,9 @@
 }
 
 .login-brand-logo {
-  width: 90px; height: 90px;
-  background: rgba(255,255,255,0.15);
-  border-radius: 50%;
+  width: 300px; height: 50px;
   display: flex; align-items: center; justify-content: center;
-  font-size: 2.5rem;
   margin-bottom: 2rem;
-  border: 2px solid rgba(255,255,255,0.25);
 }
 
 .login-brand h1 {
@@ -236,7 +232,7 @@ select.form-control { cursor: pointer; }
     min-height: unset;
   }
 
-  .login-brand-logo { width: 70px; height: 70px; font-size: 2rem; margin-bottom: 1.25rem; }
+  .login-brand-logo { width: 250px; height: 50px; font-size: 2rem; margin-bottom: 1.25rem; }
   .login-brand h1   { font-size: 1.6rem; }
   .login-brand p    { font-size: 0.9rem; max-width: 480px; }
 
@@ -266,7 +262,7 @@ select.form-control { cursor: pointer; }
     padding: 1.75rem 1.25rem 1.5rem;
   }
 
-  .login-brand-logo { width: 56px; height: 56px; font-size: 1.6rem; margin-bottom: 1rem; }
+  .login-brand-logo { width: 250px; height: 50px; font-size: 1.6rem; margin-bottom: 1rem; }
   .login-brand h1   { font-size: 1.35rem; }
   .login-brand p    { font-size: 0.82rem; }
 
@@ -313,3 +309,85 @@ select.form-control { cursor: pointer; }
 
   .login-footer { margin-top: 1.5rem; font-size: 0.78rem; }
 }
+
+/* ============================================================
+   LOGO SMALL (form side, hidden when brand panel is visible)
+   ============================================================ */
+.login-form-box .logo-small {
+  display: none;
+  width: 56px; height: 56px;
+  background: var(--primary-bg);
+  border-radius: 50%;
+  align-items: center; justify-content: center;
+  font-size: 1.75rem;
+  margin-bottom: 1.5rem;
+}
+
+/* ============================================================
+   PASSWORD TOGGLE
+   ============================================================ */
+.pw-toggle { position: relative; }
+.pw-toggle .form-control { padding-right: 2.5rem; }
+.pw-toggle-btn {
+  position: absolute; right: 0.75rem; top: 50%;
+  transform: translateY(-50%);
+  background: none; border: none;
+  color: var(--text-muted); cursor: pointer;
+  font-size: 0.9rem; padding: 2px;
+}
+
+/* ============================================================
+   REMEMBER ROW
+   ============================================================ */
+.remember-row {
+  display: flex; justify-content: space-between; align-items: center;
+  margin-bottom: 1.25rem;
+}
+.remember-row label {
+  display: flex; align-items: center; gap: 0.5rem;
+  font-size: 0.875rem; color: var(--text-secondary); cursor: pointer;
+}
+.remember-row a {
+  font-size: 0.875rem; color: var(--primary); font-weight: 500;
+}
+.remember-row a:hover { text-decoration: underline; }
+
+/* ============================================================
+   LOGIN FOOTER
+   ============================================================ */
+.login-footer {
+  margin-top: 2rem;
+  text-align: center;
+  font-size: 0.8rem;
+  color: var(--text-muted);
+}
+.login-footer a { color: var(--primary); }
+
+/* ============================================================
+   LOGIN BUTTON LOADING STATE
+   ============================================================ */
+.login-spinner {
+  display: none;
+  width: 16px; height: 16px;
+  border: 2px solid rgba(255,255,255,0.4);
+  border-top-color: #fff;
+  border-radius: 50%;
+  animation: spin 0.6s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+.btn-primary.loading .btn-text { display: none; }
+.btn-primary.loading .login-spinner { display: block; }
+
+/* ============================================================
+   LOGIN ERROR
+   ============================================================ */
+#login-error {
+  display: none;
+  background: var(--danger-light);
+  color: #991B1B;
+  border-radius: var(--radius-sm);
+  padding: 0.7rem 1rem;
+  font-size: 0.875rem;
+  margin-bottom: 1rem;
+}
+#login-error.show { display: flex; align-items: center; gap: 0.5rem; }

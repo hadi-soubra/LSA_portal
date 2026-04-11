@@ -6,91 +6,27 @@
   <title>LSA Scouts Portal — Login</title>
   <link rel="stylesheet" href="styles/shared.css" />
   <link rel="stylesheet" href="styles/index.css" />
-  <style>
-    .login-page { min-height: 100vh; }
-    .login-form-box .logo-small {
-      display: none;
-      width: 56px; height: 56px;
-      background: var(--primary-bg);
-      border-radius: 50%;
-      align-items: center; justify-content: center;
-      font-size: 1.75rem;
-      margin-bottom: 1.5rem;
-    }
-    /* logo-small hidden — brand panel is always visible */
-    .pw-toggle {
-      position: relative;
-    }
-    .pw-toggle .form-control { padding-right: 2.5rem; }
-    .pw-toggle-btn {
-      position: absolute; right: 0.75rem; top: 50%;
-      transform: translateY(-50%);
-      background: none; border: none;
-      color: var(--text-muted); cursor: pointer;
-      font-size: 0.9rem; padding: 2px;
-    }
-    .remember-row {
-      display: flex; justify-content: space-between; align-items: center;
-      margin-bottom: 1.25rem;
-    }
-    .remember-row label {
-      display: flex; align-items: center; gap: 0.5rem;
-      font-size: 0.875rem; color: var(--text-secondary); cursor: pointer;
-    }
-    .remember-row a {
-      font-size: 0.875rem; color: var(--primary); font-weight: 500;
-    }
-    .remember-row a:hover { text-decoration: underline; }
-    .login-footer {
-      margin-top: 2rem;
-      text-align: center;
-      font-size: 0.8rem;
-      color: var(--text-muted);
-    }
-    .login-footer a { color: var(--primary); }
-    .login-spinner {
-      display: none;
-      width: 16px; height: 16px;
-      border: 2px solid rgba(255,255,255,0.4);
-      border-top-color: #fff;
-      border-radius: 50%;
-      animation: spin 0.6s linear infinite;
-    }
-    @keyframes spin { to { transform: rotate(360deg); } }
-    .btn-primary.loading .btn-text { display: none; }
-    .btn-primary.loading .login-spinner { display: block; }
-    #login-error {
-      display: none;
-      background: var(--danger-light);
-      color: #991B1B;
-      border-radius: var(--radius-sm);
-      padding: 0.7rem 1rem;
-      font-size: 0.875rem;
-      margin-bottom: 1rem;
-    }
-    #login-error.show { display: flex; align-items: center; gap: 0.5rem; }
-  </style>
+
 </head>
 <body>
   <div class="login-page">
     <!-- Branding Side -->
     <div class="login-brand">
-      <div class="login-brand-logo">🏕️</div>
-      <h1>LSA Scouts<br>Digital Portal</h1>
+      <div class="login-brand-logo"><img src="assets/LSA-logo-header.png" alt="LSA Logo"></div>
       <p>A centralized platform for the Lebanese Scout Association — connecting members, leaders, and administrators.</p>
 
       <div class="login-brand-features">
         <div class="login-feature">
           <div class="login-feature-icon">👤</div>
-          <span>Members — track progression & view activities</span>
+          <span>Members can track progression & view activities</span>
         </div>
         <div class="login-feature">
           <div class="login-feature-icon">🗂️</div>
-          <span>Leaders — plan events, manage attendance & reports</span>
+          <span>Leaders can plan events, manage attendance & reports</span>
         </div>
         <div class="login-feature">
           <div class="login-feature-icon">⚙️</div>
-          <span>Admins — oversee users, content & requests</span>
+          <span>Admins can oversee users, content & requests</span>
         </div>
         <div class="login-feature">
           <div class="login-feature-icon">🤖</div>
@@ -102,7 +38,7 @@
     <!-- Form Side -->
     <div class="login-form-side">
       <div class="login-form-box">
-        <div class="logo-small">🏕️</div>
+        <div class="logo-small"><img src="assets/LSA-logo-header-compact.png" alt="LSA" style="height:48px;"></div>
         <h2>Welcome back</h2>
         <p class="login-subtitle">Sign in to your portal account</p>
 
