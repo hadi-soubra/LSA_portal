@@ -1,0 +1,876 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Leader Dashboard — LSA Portal</title>
+  <link rel="stylesheet" href="styles.css" />
+  <style>
+    .request-card {
+      background: var(--surface);
+      border: 1px solid var(--border-light);
+      border-radius: var(--radius);
+      padding: 1.25rem 1.5rem;
+      display: flex;
+      flex-direction: column;
+      gap: 0.75rem;
+      box-shadow: var(--shadow-sm);
+    }
+    .request-card-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 1rem;
+    }
+    .request-card h4 { font-size: 1rem; font-weight: 600; }
+    .request-card .meta { font-size: 0.82rem; color: var(--text-muted); }
+  </style>
+</head>
+<body>
+<div id="toast-container"></div>
+
+<div class="app">
+  <!-- SIDEBAR -->
+  <aside class="sidebar" id="sidebar">
+    <div class="sidebar-header">
+      <div class="sidebar-logo">🏕️</div>
+      <div class="sidebar-title">LSA Portal <small>Leader Zone</small></div>
+    </div>
+
+    <nav class="sidebar-nav">
+      <span class="nav-section-label">Main</span>
+      <button class="nav-item active" onclick="showSection('home', this)">
+        <span class="nav-icon">🏠</span> Dashboard
+      </button>
+
+      <span class="nav-section-label" id="nav-group-section" style="margin-top:0.5rem;display:none;">My Group</span>
+      <button class="nav-item" id="nav-leaders" onclick="showGroupTab('leaders', this)" style="display:none;">
+        <span class="nav-icon">🧑‍✈️</span> Leaders
+      </button>
+      <button class="nav-item" id="nav-members" onclick="showGroupTab('members', this)" style="display:none;">
+        <span class="nav-icon">👤</span> Members
+      </button>
+
+      <span class="nav-section-label" style="margin-top:0.5rem;">Communications</span>
+      <button class="nav-item" id="nav-comms" onclick="showSection('comms', this)">
+        <span class="nav-icon">📡</span> Communications
+        <span class="nav-badge" id="pending-count" style="display:none;">0</span>
+      </button>
+    </nav>
+
+    <div class="sidebar-footer">
+      <div class="sidebar-user">
+        <div class="sidebar-avatar" id="user-avatar">?</div>
+        <div class="sidebar-user-info">
+          <div class="sidebar-user-name" id="user-name">Loading…</div>
+          <div class="sidebar-user-role" id="user-role-label">Leader</div>
+        </div>
+        <button class="sidebar-logout" onclick="logout()" title="Logout">↩</button>
+      </div>
+    </div>
+  </aside>
+
+  <!-- MAIN -->
+  <div class="main">
+    <header class="header">
+      <button class="sidebar-toggle" onclick="toggleSidebar()">☰</button>
+      <div class="header-title">
+        <h2 id="section-title">Dashboard</h2>
+        <p id="section-subtitle">Leader overview</p>
+      </div>
+      <div class="header-actions">
+        <button class="icon-btn" onclick="showSection('comms', null)" title="Communications">
+          📡 <span class="badge-dot" id="hdr-badge-dot" style="display:none;"></span>
+        </button>
+        <div class="header-avatar" id="header-avatar">?</div>
+      </div>
+    </header>
+
+    <div class="content">
+
+      <!-- ===== HOME ===== -->
+      <div class="section active" id="sec-home">
+        <div class="stats-grid">
+          <div class="stat-card">
+            <div class="stat-icon amber">📝</div>
+            <div class="stat-info">
+              <div class="stat-value" id="stat-pending">…</div>
+              <div class="stat-label">Pending Requests</div>
+            </div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-icon green">✅</div>
+            <div class="stat-info">
+              <div class="stat-value" id="stat-approved">…</div>
+              <div class="stat-label">Approved Events</div>
+            </div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-icon blue">📊</div>
+            <div class="stat-info">
+              <div class="stat-value" id="stat-reports">…</div>
+              <div class="stat-label">Reports Submitted</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="grid-2">
+          <div class="card">
+            <div class="card-header">
+              <span class="card-title">📡 Recent Submissions</span>
+              <button class="btn btn-sm btn-secondary" onclick="showSection('comms', null)">View All</button>
+            </div>
+            <div class="activity-list" id="home-events-preview">
+              <div class="text-muted text-sm" style="padding:1rem;">Loading…</div>
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="card-header"><span class="card-title">⚡ Quick Actions</span></div>
+            <div class="card-body" style="display:flex;flex-direction:column;gap:0.75rem;">
+              <button class="btn btn-primary btn-full" onclick="showSection('comms', null);switchTab(document.querySelector('#sec-comms .tab-btn'),'tab-cr')">
+                📤 Submit Event Request
+              </button>
+              <button class="btn btn-secondary btn-full" onclick="showSection('comms', null);switchTab(document.querySelectorAll('#sec-comms .tab-btn')[1],'tab-crpt')">
+                📊 Submit Report
+              </button>
+              <button class="btn btn-outline-primary btn-full" onclick="showSection('comms', null);switchTab(document.querySelectorAll('#sec-comms .tab-btn')[2],'tab-ctracker')">
+                🗂 View Tracker
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ===== COMMUNICATIONS ===== -->
+      <div class="section" id="sec-comms">
+        <div class="page-header">
+          <h3>Communications</h3>
+          <p>Send, receive and track</p>
+        </div>
+
+        <div class="tab-bar">
+          <button class="tab-btn active" onclick="switchTab(this, 'tab-cr')">📤 Send Request</button>
+          <button class="tab-btn" onclick="switchTab(this, 'tab-crpt')">📊 Send Report</button>
+          <button class="tab-btn" onclick="switchTab(this, 'tab-ctracker')">🗂 Tracker</button>
+          <button class="tab-btn" id="tab-btn-approvals" style="display:none;" onclick="switchTab(this, 'tab-capprovals')">⏳ Approvals <span class="nav-badge" id="approvals-count" style="display:none;"></span></button>
+        </div>
+
+        <!-- Send Request -->
+        <div class="tab-pane active" id="tab-cr">
+          <div class="card">
+            <div class="card-header"><span class="card-title">📤 Send Request to District</span></div>
+            <div class="card-body">
+              <div id="cr-alert"></div>
+              <div class="form-group">
+                <label class="form-label">Event Title *</label>
+                <input class="form-control" type="text" id="cr-title" placeholder="Enter event title" />
+              </div>
+              <div class="form-group">
+                <label class="form-label">Description</label>
+                <textarea class="form-control" id="cr-desc" rows="2" placeholder="Describe the event…"></textarea>
+              </div>
+              <div class="form-row">
+                <div>
+                  <label class="form-label">Start Date *</label>
+                  <input class="form-control" type="date" id="cr-date" />
+                </div>
+                <div>
+                  <label class="form-label">End Date</label>
+                  <input class="form-control" type="date" id="cr-date-end" />
+                </div>
+              </div>
+              <div class="form-group">
+                <label class="form-label">Location *</label>
+                <input class="form-control" type="text" id="cr-location" placeholder="e.g., Cedars, North Lebanon" />
+              </div>
+              <div class="form-group">
+                <label class="form-label">Expected Participants</label>
+                <input class="form-control" type="number" id="cr-participants" placeholder="Number of participants" min="1" />
+              </div>
+              <div class="form-group">
+                <label class="form-label">Required Approval Level *</label>
+                <select class="form-control" id="cr-approval-level">
+                  <option value="group">Group Leader only</option>
+                  <option value="district" selected>District Commissioner</option>
+                  <option value="gc">General Committee (GC)</option>
+                  <option value="ec">Executive Committee (EC)</option>
+                </select>
+              </div>
+              <div class="form-group">
+                <label class="form-label">Notes</label>
+                <textarea class="form-control" id="cr-notes" rows="2" placeholder="Any other information…"></textarea>
+              </div>
+              <div style="display:flex;gap:0.75rem;margin-top:0.25rem;">
+                <button class="btn btn-primary" onclick="submitCommsRequest()">📤 Submit Request</button>
+                <button class="btn btn-secondary" onclick="clearCommsRequestForm()">Clear</button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Send Report -->
+        <div class="tab-pane" id="tab-crpt">
+          <div class="card">
+            <div class="card-header"><span class="card-title">📊 Send Report to District</span></div>
+            <div class="card-body">
+              <div id="crpt-alert"></div>
+              <div class="form-group">
+                <label class="form-label">Report Title *</label>
+                <input class="form-control" type="text" id="crpt-title" placeholder="e.g., Monthly Activity Report – April 2024" />
+              </div>
+              <div class="form-group">
+                <label class="form-label">Report Body *</label>
+                <textarea class="form-control" id="crpt-body" rows="8" placeholder="Write your full report here…"></textarea>
+              </div>
+              <div style="display:flex;gap:0.75rem;margin-top:0.25rem;">
+                <button class="btn btn-primary" onclick="submitCommsReport()">📤 Submit Report</button>
+                <button class="btn btn-secondary" onclick="clearCommsReportForm()">Clear</button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Tracker -->
+        <div class="tab-pane" id="tab-ctracker">
+          <div style="display:flex;flex-direction:column;gap:1rem;" id="comms-tracker-list">
+            <div class="text-muted text-sm">Loading…</div>
+          </div>
+        </div>
+
+        <!-- Approvals (admin leader + group head only) -->
+        <div class="tab-pane" id="tab-capprovals">
+          <div style="display:flex;flex-direction:column;gap:1rem;" id="comms-approvals-list">
+            <div class="text-muted text-sm">Loading…</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ===== MY GROUP (group leaders only) ===== -->
+      <div class="section" id="sec-group">
+        <div class="page-header">
+          <h3>Leaders &amp; Members</h3>
+          <p>View and edit members in your group</p>
+          <button class="btn btn-primary" onclick="openAddMemberModal()" id="add-member-btn">+ Add Member</button>
+        </div>
+
+        <div class="card mb-4">
+          <div class="card-body" style="padding:1rem 1.5rem;">
+            <div class="input-group">
+              <input class="form-control" type="text" placeholder="Search by name or username…"
+                     id="group-search" oninput="filterGroupUsers()" />
+              <button class="btn btn-primary">🔍</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="table-wrapper">
+            <table>
+              <thead>
+                <tr>
+                  <th>Name</th><th>Username</th><th>Level</th><th>Color</th><th>Role</th><th>Actions</th>
+                </tr>
+              </thead>
+              <tbody id="group-users-tbody">
+                <tr><td colspan="6" class="text-muted text-sm" style="padding:1rem;">Loading…</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+    </div><!-- /content -->
+  </div><!-- /main -->
+</div><!-- /app -->
+
+<!-- Add member modal (group leader only) -->
+<div class="modal-overlay" id="am-modal">
+  <div class="modal" style="max-width:440px;">
+    <div class="modal-header">
+      <span class="modal-title">Add Member</span>
+      <button class="modal-close" onclick="closeAddMemberModal()">✕</button>
+    </div>
+    <div class="modal-body">
+      <div id="am-alert"></div>
+      <div class="form-row">
+        <div>
+          <label class="form-label">Full Name *</label>
+          <input class="form-control" type="text" id="am-name" placeholder="Member's full name" />
+        </div>
+        <div>
+          <label class="form-label">Username *</label>
+          <input class="form-control" type="text" id="am-username" placeholder="Login username" />
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Password *</label>
+        <input class="form-control" type="password" id="am-password" placeholder="Initial password" />
+      </div>
+      <div class="form-row">
+        <div>
+          <label class="form-label">Email</label>
+          <input class="form-control" type="email" id="am-email" placeholder="Optional" />
+        </div>
+        <div>
+          <label class="form-label">Color</label>
+          <select class="form-control" id="am-color">
+            <option value="">— None —</option>
+            <option value="pink">Pink</option>
+            <option value="yellow">Yellow</option>
+            <option value="green">Green</option>
+            <option value="red">Red</option>
+          </select>
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Role Title</label>
+        <input class="form-control" type="text" id="am-role-title" placeholder="e.g., Scout, Rover…" />
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeAddMemberModal()">Cancel</button>
+      <button class="btn btn-primary" onclick="saveNewMember()">+ Add Member</button>
+    </div>
+  </div>
+</div>
+
+<!-- Edit member modal (group leader only) -->
+<div class="modal-overlay" id="gm-modal">
+  <div class="modal" style="max-width:440px;">
+    <div class="modal-header">
+      <span class="modal-title">Edit User</span>
+      <button class="modal-close" onclick="closeGmModal()">✕</button>
+    </div>
+    <div class="modal-body">
+      <input type="hidden" id="gm-id" />
+      <div class="form-row">
+        <div>
+          <label class="form-label">Full Name</label>
+          <input class="form-control" type="text" id="gm-name" />
+        </div>
+        <div>
+          <label class="form-label">Email</label>
+          <input class="form-control" type="email" id="gm-email" />
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Role Title</label>
+        <input class="form-control" type="text" id="gm-role-title" />
+      </div>
+      <div class="form-group">
+        <label class="form-label">New Password <span style="font-weight:400;color:var(--text-muted);">(leave blank to keep current)</span></label>
+        <input class="form-control" type="password" id="gm-password" placeholder="New password…" />
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeGmModal()">Cancel</button>
+      <button class="btn btn-primary" onclick="saveGmUser()">💾 Save</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ── Auth guard ──────────────────────────────────────────────────────────────
+const lsaToken = sessionStorage.getItem('lsa_token');
+const userData = JSON.parse(sessionStorage.getItem('lsa_user') || 'null');
+if (!lsaToken || !userData || userData.dashboard !== 'leader') {
+  window.location.href = 'index.html';
+}
+
+// ── API helper ──────────────────────────────────────────────────────────────
+function authHeaders() {
+  return { 'Content-Type': 'application/json', 'Authorization': `Bearer ${lsaToken}` };
+}
+async function api(method, path, body) {
+  const opts = { method, headers: authHeaders() };
+  if (body) opts.body = JSON.stringify(body);
+  const r = await fetch(path, opts);
+  if (r.status === 401) { logout(); return null; }
+  return r.json();
+}
+
+// ── Page init ────────────────────────────────────────────────────────────────
+const isGroupLeader = userData && (userData.level === 'group' || userData.level === 'group_admin');
+const isNoColorGroupLeader = isGroupLeader && !userData.color;
+
+(async function init() {
+  if (userData) {
+    const initials = userData.name.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase();
+    document.getElementById('user-avatar').textContent = initials;
+    document.getElementById('header-avatar').textContent = initials;
+    document.getElementById('user-name').textContent = userData.name;
+    const colorTag = userData.color ? ` · ${userData.color.charAt(0).toUpperCase() + userData.color.slice(1)}` : '';
+    document.getElementById('user-role-label').textContent =
+      (userData.role_title || 'Leader') + colorTag;
+  }
+
+  // Show group management nav for group leaders (no color)
+  if (isGroupLeader) {
+    document.getElementById('nav-leaders').style.display = '';
+    document.getElementById('nav-members').style.display = '';
+    document.getElementById('nav-group-section').style.display = '';
+  }
+
+  // Show Approvals tab for no-color group/group_admin leaders
+  if (isNoColorGroupLeader) {
+    document.getElementById('tab-btn-approvals').style.display = '';
+  }
+
+  const stats = await api('GET', '/api/stats');
+  if (stats) {
+    document.getElementById('stat-pending').textContent = stats.pending_requests ?? 0;
+    document.getElementById('stat-approved').textContent = stats.approved_events ?? 0;
+    document.getElementById('stat-reports').textContent = stats.submitted_reports ?? 0;
+    if (stats.pending_requests > 0) {
+      const badge = document.getElementById('pending-count');
+      badge.textContent = stats.pending_requests;
+      badge.style.display = '';
+      document.getElementById('hdr-badge-dot').style.display = '';
+    }
+  }
+
+  loadComms();
+  if (isGroupLeader) loadGroupUsers();
+  // group-only management; colored group leaders only submit, not manage
+})();
+
+// ── COMMUNICATIONS ──────────────────────────────────────────────────────────
+let commsTrackerEvts = [], commsTrackerRpts = [];
+
+const STATUS_BADGE = {
+  pending: 'badge-warning',
+  approved: 'badge-success',
+  rejected: 'badge-danger',
+};
+
+let commsApprovals = [];
+
+async function loadComms() {
+  const [evts, rpts] = await Promise.all([
+    api('GET', '/api/events'),
+    api('GET', '/api/reports'),
+  ]);
+  const allEvts = evts || [];
+  commsTrackerEvts = allEvts.filter(e => e.submitted_by === userData.id && !e.pending_my_review);
+  commsTrackerRpts = (rpts || []).filter(r => r.submitted_by === userData.id);
+
+  if (isNoColorGroupLeader) {
+    commsApprovals = allEvts.filter(e => e.pending_my_review);
+    renderCommsApprovals();
+    const badge = document.getElementById('approvals-count');
+    if (commsApprovals.length > 0) {
+      badge.textContent = commsApprovals.length;
+      badge.style.display = '';
+      const navBadge = document.getElementById('pending-count');
+      navBadge.textContent = commsApprovals.length;
+      navBadge.style.display = '';
+      document.getElementById('hdr-badge-dot').style.display = '';
+    } else {
+      badge.style.display = 'none';
+    }
+  }
+
+  renderCommsTracker();
+  renderCommsHomePreview();
+}
+
+function renderCommsHomePreview() {
+  const el = document.getElementById('home-events-preview');
+  const items = commsTrackerEvts;
+  if (!items.length) {
+    el.innerHTML = '<div class="text-muted text-sm" style="padding:1rem;">No submissions yet.</div>';
+    return;
+  }
+  el.innerHTML = items.slice(0, 4).map(e => `
+    <div class="activity-item">
+      <div class="activity-dot dot-${e.status === 'approved' ? 'green' : e.status === 'rejected' ? 'red' : 'amber'}"></div>
+      <div class="activity-info">
+        <div class="activity-title">${escHtml(e.title)}</div>
+        <div class="activity-meta">${e.location ? escHtml(e.location) + ' · ' : ''}${e.start_date || ''}</div>
+      </div>
+      <span class="badge ${STATUS_BADGE[e.status] || 'badge-neutral'}" style="text-transform:capitalize;">${e.status}</span>
+    </div>`).join('');
+}
+
+async function submitCommsRequest() {
+  const title = document.getElementById('cr-title').value.trim();
+  const desc = document.getElementById('cr-desc').value.trim();
+  const start_date = document.getElementById('cr-date').value;
+  const end_date = document.getElementById('cr-date-end').value;
+  const location = document.getElementById('cr-location').value.trim();
+  const participants = document.getElementById('cr-participants').value;
+  const notes = document.getElementById('cr-notes').value.trim();
+  const required_approval_level = document.getElementById('cr-approval-level').value;
+  const alertEl = document.getElementById('cr-alert');
+
+  if (!title || !location || !start_date) {
+    alertEl.innerHTML = '<div class="alert alert-danger"><span class="alert-icon">❌</span> Title, location, and start date are required.</div>';
+    return;
+  }
+
+  const res = await api('POST', '/api/events', {
+    title, description: desc || null, location, start_date, end_date: end_date || null,
+    participants: participants ? parseInt(participants) : null,
+    notes: notes || null, required_approval_level,
+  });
+
+  if (res && res.id) {
+    alertEl.innerHTML = '<div class="alert alert-success"><span class="alert-icon">✅</span> Request submitted successfully.</div>';
+    clearCommsRequestForm();
+    await loadComms();
+    const stats = await api('GET', '/api/stats');
+    if (stats) document.getElementById('stat-pending').textContent = stats.pending_requests ?? 0;
+  } else {
+    alertEl.innerHTML = `<div class="alert alert-danger"><span class="alert-icon">❌</span> ${res?.error || 'Error submitting request.'}</div>`;
+  }
+  setTimeout(() => alertEl.innerHTML = '', 4000);
+}
+
+function clearCommsRequestForm() {
+  ['cr-title','cr-desc','cr-date','cr-date-end','cr-location','cr-participants','cr-notes'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.value = '';
+  });
+  document.getElementById('cr-approval-level').value = 'district';
+}
+
+async function submitCommsReport() {
+  const title = document.getElementById('crpt-title').value.trim();
+  const body = document.getElementById('crpt-body').value.trim();
+  const alertEl = document.getElementById('crpt-alert');
+
+  if (!title || !body) {
+    alertEl.innerHTML = '<div class="alert alert-danger"><span class="alert-icon">❌</span> Title and body are required.</div>';
+    return;
+  }
+
+  const res = await api('POST', '/api/reports', { title, body });
+  if (res && res.id) {
+    alertEl.innerHTML = '<div class="alert alert-success"><span class="alert-icon">✅</span> Report submitted successfully.</div>';
+    clearCommsReportForm();
+    await loadComms();
+    const stats = await api('GET', '/api/stats');
+    if (stats) document.getElementById('stat-reports').textContent = stats.submitted_reports ?? 0;
+  } else {
+    alertEl.innerHTML = `<div class="alert alert-danger"><span class="alert-icon">❌</span> ${res?.error || 'Error submitting report.'}</div>`;
+  }
+  setTimeout(() => alertEl.innerHTML = '', 4000);
+}
+
+function clearCommsReportForm() {
+  document.getElementById('crpt-title').value = '';
+  document.getElementById('crpt-body').value = '';
+}
+
+function renderCommsTracker() {
+  const el = document.getElementById('comms-tracker-list');
+  const STATUS_BADGE_RPT = { submitted: 'badge-info', forwarded: 'badge-warning', closed: 'badge-neutral' };
+  if (!commsTrackerEvts.length && !commsTrackerRpts.length) {
+    el.innerHTML = '<div class="card"><div class="card-body text-muted text-sm">No submissions yet.</div></div>';
+    return;
+  }
+  const evtHtml = commsTrackerEvts.map(e => `
+    <div class="card" style="margin-bottom:0;">
+      <div class="card-body" style="display:flex;justify-content:space-between;align-items:flex-start;gap:1rem;">
+        <div style="flex:1;min-width:0;">
+          <div class="flex gap-2 mb-1">
+            <span class="badge badge-neutral">Event</span>
+            <span class="font-semibold" style="font-size:0.95rem;">${escHtml(e.title)}</span>
+          </div>
+          <div class="text-muted text-sm">Submitted ${fmtDate(e.created_at)} · Needs: ${e.required_approval_level.toUpperCase()}</div>
+          <div class="flex gap-2 mt-2">
+            <span class="badge badge-warning">At: ${e.current_level}</span>
+          </div>
+        </div>
+        <span class="badge ${STATUS_BADGE[e.status] || 'badge-neutral'}" style="flex-shrink:0;text-transform:capitalize;">${e.status}</span>
+      </div>
+    </div>`).join('');
+  const rptHtml = commsTrackerRpts.map(r => `
+    <div class="card" style="margin-bottom:0;">
+      <div class="card-body" style="display:flex;justify-content:space-between;align-items:flex-start;gap:1rem;">
+        <div style="flex:1;min-width:0;">
+          <div class="flex gap-2 mb-1">
+            <span class="badge badge-neutral">Report</span>
+            <span class="font-semibold" style="font-size:0.95rem;">${escHtml(r.title)}</span>
+          </div>
+          <div class="text-muted text-sm">Submitted ${fmtDate(r.created_at)}</div>
+          <div class="text-sm mt-1" style="color:var(--text-secondary);">${escHtml(r.body).slice(0,120)}${r.body && r.body.length > 120 ? '…' : ''}</div>
+        </div>
+        <span class="badge ${STATUS_BADGE_RPT[r.status] || 'badge-neutral'}" style="flex-shrink:0;text-transform:capitalize;">${r.status}</span>
+      </div>
+    </div>`).join('');
+  el.innerHTML = evtHtml + rptHtml;
+}
+
+// ── Approvals (admin leader + group head only) ───────────────────────────────
+
+function renderCommsApprovals() {
+  const el = document.getElementById('comms-approvals-list');
+  if (!commsApprovals.length) {
+    el.innerHTML = '<div class="card"><div class="card-body text-muted text-sm">No pending approvals.</div></div>';
+    return;
+  }
+  el.innerHTML = commsApprovals.map(e => `
+    <div class="request-card" id="approval-card-${e.id}">
+      <div class="request-card-header">
+        <div style="flex:1;min-width:0;">
+          <h4>${escHtml(e.title)}</h4>
+          <div class="meta">
+            ${e.submitter_name ? escHtml(e.submitter_name) + ' · ' : ''}
+            Submitted ${fmtDate(e.created_at)}
+          </div>
+        </div>
+        <span class="badge badge-warning">Awaiting your review</span>
+      </div>
+      ${e.description ? `<div class="text-sm" style="color:var(--text-secondary);">${escHtml(e.description)}</div>` : ''}
+      <div class="text-sm" style="display:flex;gap:1.5rem;flex-wrap:wrap;">
+        ${e.location ? `<span>📍 ${escHtml(e.location)}</span>` : ''}
+        ${e.start_date ? `<span>📅 ${e.start_date}${e.end_date ? ' → ' + e.end_date : ''}</span>` : ''}
+        ${e.participants ? `<span>👥 ${e.participants}</span>` : ''}
+      </div>
+      <div class="text-sm" style="color:var(--text-muted);">
+        Required approval: <strong>${e.required_approval_level.toUpperCase()}</strong>
+      </div>
+      ${e.notes ? `<div class="text-sm" style="color:var(--text-secondary);">Notes: ${escHtml(e.notes)}</div>` : ''}
+      <div id="approval-alert-${e.id}"></div>
+      <div class="flex gap-2" style="margin-top:0.25rem;">
+        <button class="btn btn-success btn-sm" onclick="approveEvent(${e.id})">✅ Approve</button>
+        <button class="btn btn-danger btn-sm" onclick="rejectEvent(${e.id})">❌ Reject</button>
+      </div>
+    </div>`).join('');
+}
+
+async function approveEvent(id) {
+  const alertEl = document.getElementById(`approval-alert-${id}`);
+  const res = await api('PUT', `/api/events/${id}/approve`, { note: '' });
+  if (res && res.id) {
+    toast('Request approved.', 'success');
+    await loadComms();
+  } else {
+    if (alertEl) alertEl.innerHTML = `<div class="alert alert-danger"><span class="alert-icon">❌</span> ${res?.error || 'Failed to approve.'}</div>`;
+  }
+}
+
+async function rejectEvent(id) {
+  const note = prompt('Reason for rejection (optional):') ?? null;
+  if (note === null) return; // cancelled
+  const alertEl = document.getElementById(`approval-alert-${id}`);
+  const res = await api('PUT', `/api/events/${id}/reject`, { note: note.trim() || null });
+  if (res && res.id) {
+    toast('Request rejected.', 'danger');
+    await loadComms();
+  } else {
+    if (alertEl) alertEl.innerHTML = `<div class="alert alert-danger"><span class="alert-icon">❌</span> ${res?.error || 'Failed to reject.'}</div>`;
+  }
+}
+
+// ── Group user management (group leaders only) ────────────────────────────────
+let allGroupUsers = [];
+
+async function loadGroupUsers() {
+  allGroupUsers = await api('GET', '/api/users') || [];
+  renderGroupUsers(allGroupUsers);
+}
+
+function renderGroupUsers(users) {
+  let display = users;
+  if (groupTabFilter === 'leaders') display = users.filter(u => u.level !== 'member');
+  else if (groupTabFilter === 'members') display = users.filter(u => u.level === 'member');
+  const tbody = document.getElementById('group-users-tbody');
+  if (!display.length) {
+    tbody.innerHTML = '<tr><td colspan="6" class="text-muted text-sm" style="padding:1rem;">No users in this category.</td></tr>';
+    return;
+  }
+  const colorBg = c => ({ pink: '#FEE2E2', yellow: '#FEF3C7', green: '#D1FAE5', red: '#FEE2E2' }[c] || '#F3F4F6');
+  tbody.innerHTML = display.map(u => `
+    <tr>
+      <td class="td-name">${escHtml(u.name)}</td>
+      <td><code>${escHtml(u.username)}</code></td>
+      <td><span class="badge badge-neutral" style="text-transform:capitalize;">${u.level}</span></td>
+      <td>${u.color ? `<span class="badge" style="background:${colorBg(u.color)};color:#333;">${u.color}</span>` : '<span class="text-muted">—</span>'}</td>
+      <td style="font-size:0.82rem;">${u.role_title ? escHtml(u.role_title) : '—'}</td>
+      <td>
+        <div class="flex gap-2">
+          <button class="btn btn-sm btn-secondary" onclick="openGmModal(${u.id})">✏️ Edit</button>
+          ${u.level === 'member' ? `<button class="btn btn-sm btn-danger" onclick="confirmDeleteMember(${u.id}, '${escHtml(u.name)}')">🗑️</button>` : ''}
+        </div>
+      </td>
+    </tr>`).join('');
+}
+
+function filterGroupUsers() {
+  const q = document.getElementById('group-search').value.toLowerCase();
+  renderGroupUsers(allGroupUsers.filter(u =>
+    u.name.toLowerCase().includes(q) || u.username.toLowerCase().includes(q)
+  ));
+}
+
+function openAddMemberModal() {
+  ['am-name','am-username','am-password','am-email','am-role-title'].forEach(id => {
+    document.getElementById(id).value = '';
+  });
+  // Pre-select the actor's color if they have one
+  const colorSel = document.getElementById('am-color');
+  if (userData && userData.color) {
+    colorSel.value = userData.color;
+    colorSel.disabled = true;
+  } else {
+    colorSel.value = '';
+    colorSel.disabled = false;
+  }
+  document.getElementById('am-alert').innerHTML = '';
+  document.getElementById('am-modal').classList.add('open');
+}
+
+function closeAddMemberModal() {
+  document.getElementById('am-modal').classList.remove('open');
+}
+
+async function saveNewMember() {
+  const name     = document.getElementById('am-name').value.trim();
+  const username = document.getElementById('am-username').value.trim();
+  const password = document.getElementById('am-password').value;
+  const email    = document.getElementById('am-email').value.trim() || null;
+  const color    = document.getElementById('am-color').value || null;
+  const roleTitle = document.getElementById('am-role-title').value.trim() || null;
+  const alertEl  = document.getElementById('am-alert');
+
+  if (!name || !username || !password) {
+    alertEl.innerHTML = '<div class="alert alert-danger"><span class="alert-icon">❌</span> Name, username, and password are required.</div>';
+    return;
+  }
+
+  const res = await api('POST', '/api/users', { name, username, password, email, color, role_title: roleTitle });
+  if (res && res.id) {
+    toast('Member added successfully.', 'success');
+    closeAddMemberModal();
+    allGroupUsers = await api('GET', '/api/users') || [];
+    renderGroupUsers(allGroupUsers);
+  } else {
+    alertEl.innerHTML = `<div class="alert alert-danger"><span class="alert-icon">❌</span> ${res?.error || 'Failed to add member.'}</div>`;
+  }
+}
+
+async function confirmDeleteMember(userId, name) {
+  if (!confirm(`Delete "${name}"? This cannot be undone.`)) return;
+  const res = await api('DELETE', `/api/users/${userId}`);
+  if (res && res.message) {
+    toast('Member deleted.', 'success');
+    allGroupUsers = await api('GET', '/api/users') || [];
+    renderGroupUsers(allGroupUsers);
+  } else {
+    toast(res?.error || 'Failed to delete member.', 'danger');
+  }
+}
+
+let gmEditingId = null;
+
+function openGmModal(userId) {
+  const u = allGroupUsers.find(x => x.id === userId);
+  if (!u) return;
+  gmEditingId = userId;
+  document.getElementById('gm-id').value = userId;
+  document.getElementById('gm-name').value = u.name;
+  document.getElementById('gm-email').value = u.email || '';
+  document.getElementById('gm-role-title').value = u.role_title || '';
+  document.getElementById('gm-password').value = '';
+  document.getElementById('gm-modal').classList.add('open');
+}
+
+function closeGmModal() {
+  document.getElementById('gm-modal').classList.remove('open');
+  gmEditingId = null;
+}
+
+async function saveGmUser() {
+  const body = {
+    name:       document.getElementById('gm-name').value.trim(),
+    email:      document.getElementById('gm-email').value.trim() || null,
+    role_title: document.getElementById('gm-role-title').value.trim() || null,
+    password:   document.getElementById('gm-password').value || null,
+  };
+  if (!body.name) { toast('Name is required.', 'danger'); return; }
+
+  const res = await api('PUT', `/api/users/${gmEditingId}`, body);
+  if (res && res.id) {
+    toast('User updated.', 'success');
+    closeGmModal();
+    allGroupUsers = await api('GET', '/api/users') || [];
+    renderGroupUsers(allGroupUsers);
+  } else {
+    toast(res?.error || 'Failed to save.', 'danger');
+  }
+}
+
+// ── Utilities ─────────────────────────────────────────────────────────────────
+const SECTION_TITLES = {
+  home:  ['Dashboard',       'Leader overview'],
+  comms: ['Communications',  'Send, receive and track'],
+  group: ['My Group',        'View and edit your group'],
+};
+
+let groupTabFilter = 'all';
+
+function showGroupTab(tab, btn) {
+  groupTabFilter = tab;
+  showSection('group', btn);
+  const titles = {
+    leaders: ['Leaders', 'View and manage leaders in your group'],
+    members: ['Members', 'View and manage members in your group'],
+  };
+  const t = titles[tab] || ['My Group', ''];
+  document.getElementById('section-title').textContent = t[0];
+  document.getElementById('section-subtitle').textContent = t[1];
+  renderGroupUsers(allGroupUsers);
+}
+
+function showSection(id, btn) {
+  document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+  document.getElementById('sec-' + id).classList.add('active');
+  if (btn) btn.classList.add('active');
+  const t = SECTION_TITLES[id] || [id, ''];
+  document.getElementById('section-title').textContent = t[0];
+  document.getElementById('section-subtitle').textContent = t[1];
+  document.getElementById('sidebar').classList.remove('open');
+}
+
+function switchTab(btn, paneId) {
+  const bar = btn.closest('.tab-bar');
+  bar.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  const targetPane = document.getElementById(paneId);
+  targetPane.parentElement.querySelectorAll(':scope > .tab-pane').forEach(p => p.classList.remove('active'));
+  targetPane.classList.add('active');
+}
+
+function toggleSidebar() { document.getElementById('sidebar').classList.toggle('open'); }
+
+function logout() {
+  sessionStorage.removeItem('lsa_token');
+  sessionStorage.removeItem('lsa_user');
+  window.location.href = 'index.html';
+}
+
+function toast(msg, type = 'success') {
+  const c = document.getElementById('toast-container');
+  const t = document.createElement('div');
+  t.className = `toast ${type}`;
+  const icons = { success: '✅', danger: '❌', warning: '⚠️' };
+  t.innerHTML = `<span>${icons[type] || 'ℹ️'}</span><span>${msg}</span>`;
+  c.appendChild(t);
+  setTimeout(() => t.remove(), 3500);
+}
+
+function escHtml(str) {
+  return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+function fmtDate(iso) {
+  if (!iso) return '—';
+  return new Date(iso).toLocaleDateString('en-GB', { day:'numeric', month:'short', year:'numeric' });
+}
+</script>
+</body>
+</html>

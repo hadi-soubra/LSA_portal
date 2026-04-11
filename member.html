@@ -1,0 +1,349 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Member Dashboard — LSA Portal</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+<div id="toast-container"></div>
+
+<div class="app">
+  <!-- SIDEBAR -->
+  <aside class="sidebar" id="sidebar">
+    <div class="sidebar-header">
+      <div class="sidebar-logo">🏕️</div>
+      <div class="sidebar-title">LSA Portal <small>Member Zone</small></div>
+    </div>
+
+    <nav class="sidebar-nav">
+      <span class="nav-section-label">Main</span>
+      <button class="nav-item active" onclick="showSection('home', this)">
+        <span class="nav-icon">🏠</span> Dashboard
+      </button>
+      <button class="nav-item" onclick="showSection('profile', this)">
+        <span class="nav-icon">👤</span> My Profile
+      </button>
+      <span class="nav-section-label" style="margin-top:0.5rem;">More</span>
+      <button class="nav-item" onclick="showSection('partnerships', this)">
+        <span class="nav-icon">🤝</span> Partnerships &amp; Rewards
+      </button>
+    </nav>
+
+    <div class="sidebar-footer">
+      <div class="sidebar-user">
+        <div class="sidebar-avatar" id="user-avatar">?</div>
+        <div class="sidebar-user-info">
+          <div class="sidebar-user-name" id="user-name">Loading…</div>
+          <div class="sidebar-user-role" id="user-role-label">Member</div>
+        </div>
+        <button class="sidebar-logout" onclick="logout()" title="Logout">↩</button>
+      </div>
+    </div>
+  </aside>
+
+  <!-- MAIN -->
+  <div class="main">
+    <header class="header">
+      <button class="sidebar-toggle" onclick="toggleSidebar()">☰</button>
+      <div class="header-title">
+        <h2 id="section-title">Dashboard</h2>
+        <p id="section-subtitle">Welcome back!</p>
+      </div>
+      <div class="header-actions">
+        <div class="header-avatar" id="header-avatar">?</div>
+      </div>
+    </header>
+
+    <div class="content">
+
+      <!-- ===== HOME ===== -->
+      <div class="section active" id="sec-home">
+        <div class="grid-2">
+          <!-- Quick Actions -->
+          <div class="card">
+            <div class="card-header"><span class="card-title">⚡ Quick Actions</span></div>
+            <div class="card-body" style="display:flex;flex-direction:column;gap:0.75rem;">
+              <button class="btn btn-primary btn-full" onclick="showSection('profile', document.querySelector('.nav-item:nth-child(2)'))">
+                👤 View My Profile
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ===== PROFILE ===== -->
+      <div class="section" id="sec-profile">
+        <div class="page-header">
+          <h3>My Profile</h3>
+          <p>View and update your personal information</p>
+        </div>
+
+        <div class="grid-2">
+          <div class="card">
+            <div class="card-header">
+              <span class="card-title">Personal Information</span>
+              <button class="btn btn-sm btn-primary" onclick="saveProfile()">Save Changes</button>
+            </div>
+            <div class="card-body">
+              <div id="profile-alert"></div>
+              <div class="form-row">
+                <div>
+                  <label class="form-label">Full Name</label>
+                  <input class="form-control" type="text" id="p-name" placeholder="Full name" />
+                </div>
+                <div>
+                  <label class="form-label">Email</label>
+                  <input class="form-control" type="email" id="p-email" placeholder="email@lsa.org.lb" />
+                </div>
+              </div>
+              <div class="form-group">
+                <label class="form-label">Scout Branch</label>
+                <input class="form-control" type="text" id="p-branch" readonly
+                       style="background:var(--bg);" />
+                <div class="form-hint">Contact your leader to change your branch.</div>
+              </div>
+              <div class="form-group">
+                <label class="form-label">Group</label>
+                <input class="form-control" type="text" id="p-group" readonly
+                       style="background:var(--bg);" />
+              </div>
+            </div>
+          </div>
+
+          <div class="flex-col gap-4">
+            <div class="card">
+              <div class="card-body"
+                   style="display:flex;flex-direction:column;align-items:center;gap:1rem;padding:2rem;">
+                <div id="profile-avatar-big"
+                     style="width:80px;height:80px;background:var(--primary-bg);border-radius:50%;
+                            display:flex;align-items:center;justify-content:center;
+                            font-size:2rem;font-weight:700;color:var(--primary);">?</div>
+                <div style="text-align:center;">
+                  <div style="font-weight:700;font-size:1.1rem;" id="profile-name-display">—</div>
+                  <div class="text-muted text-sm" id="profile-meta-display">Member</div>
+                </div>
+                <span class="badge badge-success">Active Member</span>
+              </div>
+            </div>
+
+            <div class="card">
+              <div class="card-header"><span class="card-title">Change Password</span></div>
+              <div class="card-body">
+                <div class="form-group">
+                  <label class="form-label">Current Password</label>
+                  <input class="form-control" type="password" id="pw-current" placeholder="••••••••" />
+                </div>
+                <div class="form-group">
+                  <label class="form-label">New Password</label>
+                  <input class="form-control" type="password" id="pw-new" placeholder="••••••••" />
+                </div>
+                <div class="form-group">
+                  <label class="form-label">Confirm New Password</label>
+                  <input class="form-control" type="password" id="pw-confirm" placeholder="••••••••" />
+                </div>
+                <button class="btn btn-outline-primary btn-full" onclick="changePassword()">
+                  Update Password
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ===== PARTNERSHIPS ===== -->
+      <div class="section" id="sec-partnerships">
+        <div class="page-header">
+          <h3>Partnerships &amp; Rewards</h3>
+          <p>Exclusive benefits available to LSA members</p>
+        </div>
+
+        <div class="alert alert-info">
+          <span class="alert-icon">ℹ️</span>
+          Show your LSA Member ID at participating partners to claim your discount or benefit.
+        </div>
+
+        <div class="resource-grid">
+          <div class="resource-card">
+            <div class="resource-icon" style="background:#FFF0F0;">🏨</div>
+            <div class="resource-title">Hotel Le Cedre</div>
+            <div class="resource-type">15% discount on rooms</div>
+            <span class="badge badge-success">Active</span>
+          </div>
+          <div class="resource-card">
+            <div class="resource-icon" style="background:#F0F7FF;">✈️</div>
+            <div class="resource-title">Middle East Airlines</div>
+            <div class="resource-type">10% off domestic flights</div>
+            <span class="badge badge-success">Active</span>
+          </div>
+          <div class="resource-card">
+            <div class="resource-icon" style="background:#F0FFF4;">🏥</div>
+            <div class="resource-title">AUH Insurance</div>
+            <div class="resource-type">Free basic health coverage</div>
+            <span class="badge badge-success">Active</span>
+          </div>
+          <div class="resource-card">
+            <div class="resource-icon" style="background:#FFFBEB;">📚</div>
+            <div class="resource-title">Librairie Antoine</div>
+            <div class="resource-type">20% off books &amp; supplies</div>
+            <span class="badge badge-success">Active</span>
+          </div>
+          <div class="resource-card">
+            <div class="resource-icon" style="background:#FEF3C7;">🏕️</div>
+            <div class="resource-title">Camping Sites Network</div>
+            <div class="resource-type">Free access to 12 sites</div>
+            <span class="badge badge-success">Active</span>
+          </div>
+          <div class="resource-card" style="opacity:0.6;">
+            <div class="resource-icon" style="background:var(--bg);">🎭</div>
+            <div class="resource-title">Cultural Center LB</div>
+            <div class="resource-type">Coming soon</div>
+            <span class="badge badge-neutral">Pending</span>
+          </div>
+        </div>
+      </div>
+
+    </div><!-- /content -->
+  </div><!-- /main -->
+</div><!-- /app -->
+
+<script>
+// ── Auth guard ──────────────────────────────────────────────────────────────
+const lsaToken = sessionStorage.getItem('lsa_token');
+const userData = JSON.parse(sessionStorage.getItem('lsa_user') || 'null');
+if (!lsaToken || !userData || userData.dashboard !== 'member') {
+  window.location.href = 'index.html';
+}
+
+// ── API helper ──────────────────────────────────────────────────────────────
+function authHeaders() {
+  return { 'Content-Type': 'application/json', 'Authorization': `Bearer ${lsaToken}` };
+}
+async function api(method, path, body) {
+  const opts = { method, headers: authHeaders() };
+  if (body) opts.body = JSON.stringify(body);
+  const r = await fetch(path, opts);
+  if (r.status === 401) { logout(); return null; }
+  return r.json();
+}
+
+// ── Page init ────────────────────────────────────────────────────────────────
+(async function init() {
+  // Set user info from session
+  if (userData) {
+    const initials = userData.name.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase();
+    document.getElementById('user-avatar').textContent = initials;
+    document.getElementById('header-avatar').textContent = initials;
+    document.getElementById('user-name').textContent = userData.name;
+    document.getElementById('section-subtitle').textContent = `Welcome back, ${userData.name.split(' ')[0]}!`;
+    // Profile section
+    document.getElementById('profile-avatar-big').textContent = initials;
+    document.getElementById('profile-name-display').textContent = userData.name;
+    const colorLabel = userData.color ? ` · ${userData.color.charAt(0).toUpperCase() + userData.color.slice(1)} Branch` : '';
+    document.getElementById('profile-meta-display').textContent =
+      `Member${userData.group_code ? ' · ' + userData.group_code : ''}${colorLabel}`;
+    document.getElementById('p-name').value = userData.name;
+    document.getElementById('p-email').value = userData.email || '';
+    document.getElementById('p-branch').value = userData.color
+      ? userData.color.charAt(0).toUpperCase() + userData.color.slice(1) + ' Branch' : '—';
+    document.getElementById('p-group').value =
+      (userData.group_name || '') + (userData.group_code ? ` (${userData.group_code})` : '') +
+      (userData.district_name ? ' — ' + userData.district_name : '');
+  }
+
+})();
+
+// ── Profile save ──────────────────────────────────────────────────────────────
+async function saveProfile() {
+  const el = document.getElementById('profile-alert');
+  const body = {
+    name: document.getElementById('p-name').value.trim(),
+    email: document.getElementById('p-email').value.trim(),
+  };
+  const updated = await api('PUT', '/api/profile', body);
+  if (updated && !updated.error) {
+    sessionStorage.setItem('lsa_user', JSON.stringify({ ...userData, ...updated }));
+    el.innerHTML = '<div class="alert alert-success"><span class="alert-icon">✅</span> Profile updated.</div>';
+    document.getElementById('user-name').textContent = updated.name;
+    document.getElementById('profile-name-display').textContent = updated.name;
+  } else {
+    el.innerHTML = `<div class="alert alert-danger"><span class="alert-icon">❌</span> ${updated?.error || 'Error saving profile.'}</div>`;
+  }
+  setTimeout(() => el.innerHTML = '', 3000);
+}
+
+async function changePassword() {
+  const cur = document.getElementById('pw-current').value;
+  const nw = document.getElementById('pw-new').value;
+  const cf = document.getElementById('pw-confirm').value;
+  if (!cur || !nw) return toast('Please fill in current and new password.', 'warning');
+  if (nw !== cf) return toast('New passwords do not match.', 'danger');
+  const res = await api('PUT', '/api/profile', { current_password: cur, new_password: nw });
+  if (res && !res.error) {
+    toast('Password updated successfully.', 'success');
+    document.getElementById('pw-current').value = '';
+    document.getElementById('pw-new').value = '';
+    document.getElementById('pw-confirm').value = '';
+  } else {
+    toast(res?.error || 'Failed to update password.', 'danger');
+  }
+}
+
+// ── Utilities ─────────────────────────────────────────────────────────────────
+const SECTION_TITLES = {
+  home:         ['Dashboard',                `Welcome back, ${userData?.name?.split(' ')[0] || 'Scout'}!`],
+  profile:      ['My Profile',              'View and update your information'],
+  partnerships: ['Partnerships & Rewards',  'Exclusive member benefits'],
+};
+
+function showSection(id, btn) {
+  document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+  document.getElementById('sec-' + id).classList.add('active');
+  if (btn) btn.classList.add('active');
+  const t = SECTION_TITLES[id] || [id, ''];
+  document.getElementById('section-title').textContent = t[0];
+  document.getElementById('section-subtitle').textContent = t[1];
+  document.getElementById('sidebar').classList.remove('open');
+}
+
+function switchTab(btn, paneId) {
+  const bar = btn.closest('.tab-bar');
+  bar.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  const section = btn.closest('.section');
+  section.querySelectorAll('.tab-pane').forEach(p => p.classList.remove('active'));
+  document.getElementById(paneId).classList.add('active');
+}
+
+function toggleSidebar() { document.getElementById('sidebar').classList.toggle('open'); }
+
+function logout() {
+  sessionStorage.removeItem('lsa_token');
+  sessionStorage.removeItem('lsa_user');
+  window.location.href = 'index.html';
+}
+
+function toast(msg, type = 'success') {
+  const c = document.getElementById('toast-container');
+  const t = document.createElement('div');
+  t.className = `toast ${type}`;
+  const icons = { success: '✅', danger: '❌', warning: '⚠️' };
+  t.innerHTML = `<span>${icons[type] || 'ℹ️'}</span><span>${msg}</span>`;
+  c.appendChild(t);
+  setTimeout(() => t.remove(), 3500);
+}
+
+function escHtml(str) {
+  return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+function fmtDate(iso) {
+  if (!iso) return '—';
+  const d = new Date(iso);
+  return d.toLocaleDateString('en-GB', { day:'numeric', month:'short', year:'numeric' });
+}
+</script>
+</body>
+</html>

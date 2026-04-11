@@ -1,0 +1,1037 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>GC Dashboard — LSA Portal</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+<div id="toast-container"></div>
+
+<!-- Confirm Modal -->
+<div class="modal-overlay" id="confirm-modal">
+  <div class="modal" style="max-width:400px;">
+    <div class="modal-header">
+      <span class="modal-title" id="modal-title">Confirm Action</span>
+      <button class="modal-close" onclick="closeModal()">✕</button>
+    </div>
+    <div class="modal-body">
+      <p id="modal-body-text" style="font-size:0.9rem;color:var(--text-secondary);"></p>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeModal()">Cancel</button>
+      <button class="btn" id="modal-confirm-btn" onclick="modalConfirm()">Confirm</button>
+    </div>
+  </div>
+</div>
+
+<!-- User Modal (Add / Edit) -->
+<div class="modal-overlay" id="user-modal">
+  <div class="modal">
+    <div class="modal-header">
+      <span class="modal-title" id="user-modal-title">Add User</span>
+      <button class="modal-close" onclick="closeUserModal()">✕</button>
+    </div>
+    <div class="modal-body">
+      <input type="hidden" id="um-id" value="" />
+      <div class="form-row">
+        <div>
+          <label class="form-label">Full Name *</label>
+          <input class="form-control" type="text" id="um-name" placeholder="Full name" />
+        </div>
+        <div>
+          <label class="form-label">Username *</label>
+          <input class="form-control" type="text" id="um-username" placeholder="username" />
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Email</label>
+        <input class="form-control" type="email" id="um-email" placeholder="user@lsa.org.lb" />
+      </div>
+      <div class="form-row">
+        <div>
+          <label class="form-label">Dashboard *</label>
+          <select class="form-control" id="um-dashboard">
+            <option value="admin">Admin</option>
+          </select>
+        </div>
+        <div>
+          <label class="form-label">Level *</label>
+          <select class="form-control" id="um-level">
+            <option value="district">District Commissioner</option>
+          </select>
+        </div>
+      </div>
+      <div class="form-row">
+        <div>
+          <label class="form-label">Color Branch</label>
+          <select class="form-control" id="um-color">
+            <option value="">None (functional)</option>
+            <option value="pink">Pink</option>
+            <option value="yellow">Yellow</option>
+            <option value="green">Green</option>
+            <option value="red">Red</option>
+          </select>
+        </div>
+        <div>
+          <label class="form-label">Role Title</label>
+          <input class="form-control" type="text" id="um-role-title" placeholder="e.g., مفوض منطقة" />
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">District</label>
+        <select class="form-control" id="um-district">
+          <option value="">— Select district —</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label class="form-label" id="um-pw-label">Password *</label>
+        <input class="form-control" type="password" id="um-password"
+               placeholder="Temporary password (leave blank to keep current)" />
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeUserModal()">Cancel</button>
+      <button class="btn btn-primary" onclick="saveUser()">💾 Save User</button>
+    </div>
+  </div>
+</div>
+
+<!-- Action Note Modal -->
+<div class="modal-overlay" id="action-modal">
+  <div class="modal" style="max-width:420px;">
+    <div class="modal-header">
+      <span class="modal-title" id="action-modal-title">Add Note</span>
+      <button class="modal-close" onclick="closeActionModal()">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-group">
+        <label class="form-label">Note (optional)</label>
+        <textarea class="form-control" id="action-note" rows="3" placeholder="Add a note…"></textarea>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeActionModal()">Cancel</button>
+      <button class="btn btn-primary" id="action-confirm-btn" onclick="executeAction()">Confirm</button>
+    </div>
+  </div>
+</div>
+
+<div class="app">
+  <!-- SIDEBAR -->
+  <aside class="sidebar" id="sidebar">
+    <div class="sidebar-header">
+      <div class="sidebar-logo">🏕️</div>
+      <div class="sidebar-title">LSA Portal <small>GC Zone</small></div>
+    </div>
+
+    <nav class="sidebar-nav">
+      <span class="nav-section-label">Main</span>
+      <button class="nav-item active" onclick="showSection('home', this)">
+        <span class="nav-icon">🏠</span> Dashboard
+      </button>
+
+      <span class="nav-section-label" style="margin-top:0.5rem;">My Group</span>
+      <button class="nav-item" id="nav-leaders" onclick="showUsersTab('leaders', this)">
+        <span class="nav-icon">🧑‍✈️</span> Leaders
+      </button>
+      <button class="nav-item" id="nav-members" onclick="showUsersTab('members', this)">
+        <span class="nav-icon">👤</span> Members
+      </button>
+
+      <span class="nav-section-label" style="margin-top:0.5rem;">Communications</span>
+      <button class="nav-item" onclick="showSection('comms', this)">
+        <span class="nav-icon">📡</span> Communications
+        <span class="nav-badge" id="req-badge" style="display:none;">0</span>
+      </button>
+    </nav>
+
+    <div class="sidebar-footer">
+      <div class="sidebar-user">
+        <div class="sidebar-avatar" id="user-avatar">?</div>
+        <div class="sidebar-user-info">
+          <div class="sidebar-user-name" id="user-name">Loading…</div>
+          <div class="sidebar-user-role" id="user-role-label">General Commissioner</div>
+        </div>
+        <button class="sidebar-logout" onclick="logout()" title="Logout">↩</button>
+      </div>
+    </div>
+  </aside>
+
+  <!-- MAIN -->
+  <div class="main">
+    <header class="header">
+      <button class="sidebar-toggle" onclick="toggleSidebar()">☰</button>
+      <div class="header-title">
+        <h2 id="section-title">Dashboard</h2>
+        <p id="section-subtitle">GC overview</p>
+      </div>
+      <div class="header-actions">
+        <button class="btn btn-sm btn-primary" onclick="goToCommsTab('tab-approve-reqs')">
+          📝 Requests <span id="header-badge" style="background:rgba(255,255,255,0.25);border-radius:99px;padding:0 6px;margin-left:4px;display:none;">0</span>
+        </button>
+        <div class="header-avatar" id="header-avatar">?</div>
+      </div>
+    </header>
+
+    <div class="content">
+
+      <!-- ===== HOME ===== -->
+      <div class="section active" id="sec-home">
+        <div class="stats-grid">
+          <div class="stat-card">
+            <div class="stat-icon amber">📝</div>
+            <div class="stat-info">
+              <div class="stat-value" id="stat-pending">…</div>
+              <div class="stat-label">Pending Requests</div>
+            </div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-icon blue">👥</div>
+            <div class="stat-info">
+              <div class="stat-value" id="stat-users">…</div>
+              <div class="stat-label">District Commissioners</div>
+            </div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-icon purple">📋</div>
+            <div class="stat-info">
+              <div class="stat-value" id="stat-reports">…</div>
+              <div class="stat-label">Pending Reports</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="grid-2">
+          <div class="card">
+            <div class="card-header">
+              <span class="card-title">⏳ Pending Event Requests</span>
+              <button class="btn btn-sm btn-primary" onclick="goToCommsTab('tab-approve-reqs')">Review All</button>
+            </div>
+            <div class="activity-list" id="home-pending-events">
+              <div class="text-muted text-sm" style="padding:1rem;">Loading…</div>
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="card-header">
+              <span class="card-title">📋 Pending Reports</span>
+              <button class="btn btn-sm btn-secondary" onclick="goToCommsTab('tab-approve-rpts')">View All</button>
+            </div>
+            <div class="activity-list" id="home-pending-reports">
+              <div class="text-muted text-sm" style="padding:1rem;">Loading…</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ===== USERS ===== -->
+      <div class="section" id="sec-users">
+        <div class="page-header" style="display:flex;justify-content:space-between;align-items:flex-start;">
+          <div>
+            <h3>District Commissioners</h3>
+            <p>Manage district-level administrators</p>
+          </div>
+          <button class="btn btn-primary" onclick="openAddUserModal()">+ Add Commissioner</button>
+        </div>
+
+        <div class="card mb-4">
+          <div class="card-body" style="padding:1rem 1.5rem;">
+            <div class="input-group">
+              <input class="form-control" type="text" placeholder="Search by name or username…"
+                     id="user-search" oninput="filterUsers()" />
+              <button class="btn btn-primary">🔍</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="table-wrapper">
+            <table id="users-table">
+              <thead>
+                <tr>
+                  <th>Name</th>
+                  <th>Username</th>
+                  <th>Color</th>
+                  <th>Role</th>
+                  <th>District</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody id="users-tbody">
+                <tr><td colspan="6" class="text-muted text-sm" style="padding:1rem;">Loading…</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- ===== COMMUNICATIONS ===== -->
+      <div class="section" id="sec-comms">
+        <div class="page-header">
+          <h3>Communications</h3>
+          <p>Send, receive and track</p>
+        </div>
+
+        <div class="tab-bar">
+          <button class="tab-btn active" onclick="switchTab(this, 'tab-cr')">📤 Send Request</button>
+          <button class="tab-btn" onclick="switchTab(this, 'tab-crpt')">📊 Send Report</button>
+          <button class="tab-btn" onclick="switchTab(this, 'tab-ctracker')">🗂 Tracker</button>
+          <button class="tab-btn" onclick="switchTab(this, 'tab-approve-reqs')">✅ Approve Requests <span class="nav-badge" id="approve-reqs-badge" style="display:none;background:var(--primary);color:#fff;"></span></button>
+          <button class="tab-btn" onclick="switchTab(this, 'tab-approve-rpts')">📋 Approve Reports</button>
+        </div>
+
+        <!-- Send Request -->
+        <div class="tab-pane active" id="tab-cr">
+          <div class="card">
+            <div class="card-header"><span class="card-title">📤 Send Request to EC</span></div>
+            <div class="card-body">
+              <div id="cr-alert"></div>
+              <div class="form-group">
+                <label class="form-label">Event Title *</label>
+                <input class="form-control" type="text" id="cr-title" placeholder="Enter event title" />
+              </div>
+              <div class="form-group">
+                <label class="form-label">Description</label>
+                <textarea class="form-control" id="cr-desc" rows="2" placeholder="Describe the event…"></textarea>
+              </div>
+              <div class="form-row">
+                <div>
+                  <label class="form-label">Start Date *</label>
+                  <input class="form-control" type="date" id="cr-date" />
+                </div>
+                <div>
+                  <label class="form-label">End Date</label>
+                  <input class="form-control" type="date" id="cr-date-end" />
+                </div>
+              </div>
+              <div class="form-group">
+                <label class="form-label">Location *</label>
+                <input class="form-control" type="text" id="cr-location" placeholder="Event location" />
+              </div>
+              <div class="form-group">
+                <label class="form-label">Expected Participants</label>
+                <input class="form-control" type="number" id="cr-participants" min="1" />
+              </div>
+              <div class="form-group">
+                <label class="form-label">Required Approval Level *</label>
+                <select class="form-control" id="cr-approval-level">
+                  <option value="ec">EC Level (National)</option>
+                </select>
+              </div>
+              <div class="form-group">
+                <label class="form-label">Notes</label>
+                <textarea class="form-control" id="cr-notes" rows="2" placeholder="Additional notes…"></textarea>
+              </div>
+              <div style="display:flex;gap:0.75rem;margin-top:0.25rem;">
+                <button class="btn btn-primary" onclick="submitCommsRequest()">📤 Submit Request</button>
+                <button class="btn btn-secondary" onclick="clearCommsRequestForm()">Clear</button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Send Report -->
+        <div class="tab-pane" id="tab-crpt">
+          <div class="card">
+            <div class="card-header"><span class="card-title">📊 Send Report to EC</span></div>
+            <div class="card-body">
+              <div id="crpt-alert"></div>
+              <div class="form-group">
+                <label class="form-label">Report Title *</label>
+                <input class="form-control" type="text" id="crpt-title" placeholder="e.g., GC Monthly Report – April 2024" />
+              </div>
+              <div class="form-group">
+                <label class="form-label">Report Body *</label>
+                <textarea class="form-control" id="crpt-body" rows="8" placeholder="Write your full report here…"></textarea>
+              </div>
+              <div style="display:flex;gap:0.75rem;margin-top:0.25rem;">
+                <button class="btn btn-primary" onclick="submitCommsReport()">📤 Submit Report</button>
+                <button class="btn btn-secondary" onclick="clearCommsReportForm()">Clear</button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Tracker -->
+        <div class="tab-pane" id="tab-ctracker">
+          <div style="display:flex;flex-direction:column;gap:1rem;" id="comms-tracker-list">
+            <div class="text-muted text-sm">Loading…</div>
+          </div>
+        </div>
+
+        <!-- Approve Requests -->
+        <div class="tab-pane" id="tab-approve-reqs">
+          <div class="page-header" style="padding:0 0 0.75rem;">
+            <h4 style="margin:0;">Event Requests</h4>
+            <p style="margin:0;">Review requests forwarded from district commissioners</p>
+          </div>
+          <div class="tab-bar">
+            <button class="tab-btn active" onclick="switchTab(this, 'tab-pending-reqs')">Pending</button>
+            <button class="tab-btn" onclick="switchTab(this, 'tab-all-reqs')">All Requests</button>
+          </div>
+          <div class="tab-pane active" id="tab-pending-reqs">
+            <div style="display:flex;flex-direction:column;gap:1rem;" id="pending-reqs-list">
+              <div class="text-muted text-sm">Loading…</div>
+            </div>
+          </div>
+          <div class="tab-pane" id="tab-all-reqs">
+            <div class="card">
+              <div class="table-wrapper">
+                <table>
+                  <thead>
+                    <tr>
+                      <th>Title</th><th>Submitted By</th><th>Location</th>
+                      <th>Date</th><th>Needs</th><th>Status</th><th>Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody id="all-reqs-tbody">
+                    <tr><td colspan="7" class="text-muted text-sm" style="padding:1rem;">Loading…</td></tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Approve Reports -->
+        <div class="tab-pane" id="tab-approve-rpts">
+          <div class="page-header" style="padding:0 0 0.75rem;">
+            <h4 style="margin:0;">Reports</h4>
+            <p style="margin:0;">Review and forward reports from districts</p>
+          </div>
+          <div style="display:flex;flex-direction:column;gap:1rem;" id="reports-list">
+            <div class="text-muted text-sm">Loading…</div>
+          </div>
+        </div>
+      </div>
+
+    </div><!-- /content -->
+  </div><!-- /main -->
+</div><!-- /app -->
+
+<script>
+// ── Auth guard ──────────────────────────────────────────────────────────────
+const lsaToken = sessionStorage.getItem('lsa_token');
+const userData = JSON.parse(sessionStorage.getItem('lsa_user') || 'null');
+if (!lsaToken || !userData || userData.dashboard !== 'admin' || userData.level !== 'gc') {
+  window.location.href = 'index.html';
+}
+
+function authHeaders() {
+  return { 'Content-Type': 'application/json', 'Authorization': `Bearer ${lsaToken}` };
+}
+async function api(method, path, body) {
+  const opts = { method, headers: authHeaders() };
+  if (body) opts.body = JSON.stringify(body);
+  const r = await fetch(path, opts);
+  if (r.status === 401) { logout(); return null; }
+  return r.json();
+}
+
+let allEvents = [], allReports = [], allUsers = [];
+let allDistrictsRef = [];
+
+(async function init() {
+  if (userData) {
+    const initials = userData.name.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase();
+    document.getElementById('user-avatar').textContent = initials;
+    document.getElementById('header-avatar').textContent = initials;
+    document.getElementById('user-name').textContent = userData.name;
+    const colorTag = userData.color ? ` · ${userData.color.charAt(0).toUpperCase() + userData.color.slice(1)}` : '';
+    document.getElementById('user-role-label').textContent =
+      (userData.role_title || 'General Commissioner') + colorTag;
+  }
+
+  const [stats, districts] = await Promise.all([
+    api('GET', '/api/stats'),
+    api('GET', '/api/districts'),
+  ]);
+
+  allDistrictsRef = districts || [];
+
+  if (stats) {
+    document.getElementById('stat-pending').textContent = stats.pending_requests ?? 0;
+    document.getElementById('stat-users').textContent = stats.total_managed_users ?? 0;
+    document.getElementById('stat-reports').textContent = stats.pending_reports ?? 0;
+    if (stats.pending_requests > 0) {
+      const n = stats.pending_requests;
+      ['req-badge','header-badge','approve-reqs-badge'].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) { el.textContent = n; el.style.display = ''; }
+      });
+    }
+  }
+
+  await Promise.all([loadUsers(), loadEvents(), loadReports(), loadComms()]);
+})();
+
+// ── USERS ─────────────────────────────────────────────────────────────────────
+async function loadUsers() {
+  allUsers = await api('GET', '/api/users') || [];
+  renderUsersTable(allUsers);
+}
+
+function renderUsersTable(users) {
+  let display = users;
+  if (usersTabFilter === 'leaders') display = users.filter(u => u.level !== 'member');
+  else if (usersTabFilter === 'members') display = users.filter(u => u.level === 'member');
+  const tbody = document.getElementById('users-tbody');
+  if (!display.length) {
+    tbody.innerHTML = '<tr><td colspan="6" class="text-muted text-sm" style="padding:1rem;">No users in this category.</td></tr>';
+    return;
+  }
+  tbody.innerHTML = display.map(u => `
+    <tr style="${!u.editable ? 'opacity:0.8;' : ''}">
+      <td class="td-name">${escHtml(u.name)}${!u.editable ? ' <span class="badge badge-neutral" style="font-size:0.7rem;">view only</span>' : ''}</td>
+      <td><code>${escHtml(u.username)}</code></td>
+      <td>${u.color ? `<span class="badge" style="background:${colorBg(u.color)};color:#333;">${u.color}</span>` : '<span class="text-muted">—</span>'}</td>
+      <td style="font-size:0.82rem;">${u.role_title ? escHtml(u.role_title) : '—'}</td>
+      <td style="font-size:0.82rem;">${u.district_name ? escHtml(u.district_name) : (u.group_code ? escHtml(u.group_code) : '—')}</td>
+      <td>
+        ${u.editable ? `
+        <button class="btn btn-sm btn-secondary" onclick="openEditUserModal(${u.id})">✏️ Edit</button>
+        ` : '<span class="text-muted text-sm">—</span>'}
+      </td>
+    </tr>`).join('');
+}
+
+function filterUsers() {
+  const q = document.getElementById('user-search').value.toLowerCase();
+  renderUsersTable(allUsers.filter(u =>
+    u.name.toLowerCase().includes(q) || u.username.toLowerCase().includes(q)
+  ));
+}
+
+function colorBg(c) {
+  return { pink: '#FEE2E2', yellow: '#FEF3C7', green: '#D1FAE5', red: '#FEE2E2' }[c] || '#F3F4F6';
+}
+
+let editingUserId = null;
+
+function openAddUserModal() {
+  editingUserId = null;
+  document.getElementById('user-modal-title').textContent = 'Add District Commissioner';
+  document.getElementById('um-pw-label').textContent = 'Password *';
+  document.getElementById('um-id').value = '';
+  ['um-name','um-username','um-email','um-role-title','um-password'].forEach(id => {
+    document.getElementById(id).value = '';
+  });
+  document.getElementById('um-color').value = '';
+  populateDistrictDropdown();
+  document.getElementById('user-modal').classList.add('open');
+}
+
+function openEditUserModal(userId) {
+  const u = allUsers.find(x => x.id === userId);
+  if (!u) return;
+  editingUserId = userId;
+  document.getElementById('user-modal-title').textContent = 'Edit Commissioner';
+  document.getElementById('um-pw-label').textContent = 'New Password (leave blank to keep current)';
+  document.getElementById('um-id').value = userId;
+  document.getElementById('um-name').value = u.name;
+  document.getElementById('um-username').value = u.username;
+  document.getElementById('um-email').value = u.email || '';
+  document.getElementById('um-color').value = u.color || '';
+  document.getElementById('um-role-title').value = u.role_title || '';
+  document.getElementById('um-password').value = '';
+  populateDistrictDropdown(u.district_id);
+  document.getElementById('user-modal').classList.add('open');
+}
+
+function closeUserModal() {
+  document.getElementById('user-modal').classList.remove('open');
+}
+
+function populateDistrictDropdown(selectedDistrict) {
+  const dSel = document.getElementById('um-district');
+  dSel.innerHTML = '<option value="">— Select district —</option>' +
+    allDistrictsRef.map(d => `<option value="${d.id}" ${d.id === selectedDistrict ? 'selected' : ''}>${escHtml(d.name)}</option>`).join('');
+}
+
+async function saveUser() {
+  const body = {
+    name: document.getElementById('um-name').value.trim(),
+    username: document.getElementById('um-username').value.trim(),
+    email: document.getElementById('um-email').value.trim() || null,
+    dashboard: 'admin',
+    level: 'district',
+    color: document.getElementById('um-color').value || null,
+    role_title: document.getElementById('um-role-title').value.trim() || null,
+    district_id: parseInt(document.getElementById('um-district').value) || null,
+    password: document.getElementById('um-password').value || null,
+  };
+
+  if (!body.name || !body.username || (!editingUserId && !body.password)) {
+    toast('Name, username and password are required.', 'danger');
+    return;
+  }
+
+  let res;
+  if (editingUserId) {
+    res = await api('PUT', `/api/users/${editingUserId}`, body);
+  } else {
+    res = await api('POST', '/api/users', body);
+  }
+
+  if (res && res.id) {
+    toast(editingUserId ? 'Commissioner updated.' : 'Commissioner created.', 'success');
+    closeUserModal();
+    allUsers = await api('GET', '/api/users') || [];
+    renderUsersTable(allUsers);
+  } else {
+    toast(res?.error || 'Failed to save.', 'danger');
+  }
+}
+
+function showConfirmModal(title, text, btnClass, btnLabel, callback) {
+  document.getElementById('modal-title').textContent = title;
+  document.getElementById('modal-body-text').textContent = text;
+  const btn = document.getElementById('modal-confirm-btn');
+  btn.className = `btn ${btnClass}`;
+  btn.textContent = btnLabel;
+  btn._callback = callback;
+  document.getElementById('confirm-modal').classList.add('open');
+}
+
+function closeModal() {
+  document.getElementById('confirm-modal').classList.remove('open');
+}
+
+async function modalConfirm() {
+  const btn = document.getElementById('modal-confirm-btn');
+  if (btn._callback) { await btn._callback(); btn._callback = null; }
+  closeModal();
+}
+
+// ── EVENT REQUESTS ─────────────────────────────────────────────────────────────
+async function loadEvents() {
+  allEvents = await api('GET', '/api/events') || [];
+  renderPendingEvents();
+  renderAllEventsTable();
+  renderHomePendingEvents();
+}
+
+const STATUS_BADGE = {
+  pending: 'badge-warning',
+  approved: 'badge-success',
+  rejected: 'badge-danger',
+};
+
+function renderHomePendingEvents() {
+  const el = document.getElementById('home-pending-events');
+  const pending = allEvents.filter(e => e.status === 'pending');
+  if (!pending.length) {
+    el.innerHTML = '<div class="text-muted text-sm" style="padding:1rem;">No pending requests.</div>';
+    return;
+  }
+  el.innerHTML = pending.slice(0, 4).map(e => `
+    <div class="activity-item">
+      <div class="activity-dot dot-amber"></div>
+      <div class="activity-info">
+        <div class="activity-title">${escHtml(e.title)}</div>
+        <div class="activity-meta">${escHtml(e.submitter_name || '')} · ${e.start_date || ''}</div>
+      </div>
+      <div class="flex gap-2">
+        <button class="btn btn-sm btn-success" onclick="promptAction('approve', ${e.id})">✓</button>
+        <button class="btn btn-sm btn-danger"  onclick="promptAction('reject',  ${e.id})">✕</button>
+      </div>
+    </div>`).join('');
+}
+
+function renderPendingEvents() {
+  const el = document.getElementById('pending-reqs-list');
+  const pending = allEvents.filter(e => e.status === 'pending');
+  if (!pending.length) {
+    el.innerHTML = '<div class="card"><div class="card-body text-muted text-sm">No pending requests at GC level.</div></div>';
+    return;
+  }
+  el.innerHTML = pending.map(e => `
+    <div class="card">
+      <div class="card-body">
+        <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:1rem;margin-bottom:0.75rem;">
+          <div>
+            <div class="font-semibold" style="font-size:1rem;">${escHtml(e.title)}</div>
+            <div class="text-muted text-sm mt-1">
+              Submitted by <strong>${escHtml(e.submitter_name || '—')}</strong>
+              ${e.submitter_color ? `· <span style="text-transform:capitalize;">${e.submitter_color} branch</span>` : ''}
+              ${e.location ? '· 📍 ' + escHtml(e.location) : ''}
+              ${e.start_date ? '· ' + e.start_date : ''}
+              ${e.participants ? '· ' + e.participants + ' participants' : ''}
+            </div>
+          </div>
+          <span class="badge badge-warning">Pending</span>
+        </div>
+        ${e.description ? `<p class="text-sm" style="color:var(--text-secondary);margin-bottom:0.75rem;">${escHtml(e.description)}</p>` : ''}
+        <div class="flex gap-2 flex-wrap" style="margin-bottom:0.75rem;">
+          <span class="badge badge-neutral">Needs ${e.required_approval_level.toUpperCase()} approval</span>
+          <span class="badge badge-neutral">Currently at: ${e.current_level}</span>
+          <span class="badge badge-neutral">Submitted ${fmtDate(e.created_at)}</span>
+        </div>
+        <div class="flex gap-2">
+          <button class="btn btn-success" onclick="promptAction('approve', ${e.id})">
+            ✓ ${e.current_level === e.required_approval_level ? 'Approve' : 'Approve & Forward to EC'}
+          </button>
+          <button class="btn btn-danger" onclick="promptAction('reject', ${e.id})">✕ Reject</button>
+        </div>
+      </div>
+    </div>`).join('');
+}
+
+function renderAllEventsTable() {
+  const tbody = document.getElementById('all-reqs-tbody');
+  if (!allEvents.length) {
+    tbody.innerHTML = '<tr><td colspan="7" class="text-muted text-sm" style="padding:1rem;">No requests.</td></tr>';
+    return;
+  }
+  tbody.innerHTML = allEvents.map(e => `
+    <tr>
+      <td class="td-name">${escHtml(e.title)}</td>
+      <td>${escHtml(e.submitter_name || '—')}</td>
+      <td>${e.location ? escHtml(e.location) : '—'}</td>
+      <td>${e.start_date || '—'}</td>
+      <td><span class="badge badge-neutral" style="text-transform:uppercase;">${e.required_approval_level}</span></td>
+      <td><span class="badge ${STATUS_BADGE[e.status] || 'badge-neutral'}"
+               style="text-transform:capitalize;">${e.status}</span></td>
+      <td>
+        ${e.status === 'pending' ? `
+          <div class="flex gap-2">
+            <button class="btn btn-sm btn-success" onclick="promptAction('approve',${e.id})">✓</button>
+            <button class="btn btn-sm btn-danger"  onclick="promptAction('reject', ${e.id})">✕</button>
+          </div>` : '<span class="text-muted text-sm">—</span>'}
+      </td>
+    </tr>`).join('');
+}
+
+let pendingAction = null;
+
+function promptAction(type, id) {
+  pendingAction = { type, id };
+  const titles = { approve: 'Approve Request', reject: 'Reject Request', forward_report: 'Forward Report', close_report: 'Close Report' };
+  document.getElementById('action-modal-title').textContent = titles[type] || 'Confirm';
+  document.getElementById('action-note').value = '';
+  const btn = document.getElementById('action-confirm-btn');
+  btn.className = `btn ${type === 'reject' || type === 'close_report' ? 'btn-danger' : 'btn-primary'}`;
+  btn.textContent = type === 'forward_report' ? 'Forward' : type === 'close_report' ? 'Close' : type.charAt(0).toUpperCase() + type.slice(1);
+  document.getElementById('action-modal').classList.add('open');
+}
+
+function closeActionModal() {
+  document.getElementById('action-modal').classList.remove('open');
+  pendingAction = null;
+}
+
+async function executeAction() {
+  if (!pendingAction) return;
+  const { type, id } = pendingAction;
+  const note = document.getElementById('action-note').value.trim();
+  closeActionModal();
+
+  let res;
+  if (type === 'approve') {
+    res = await api('PUT', `/api/events/${id}/approve`, { note });
+    if (res && !res.error) toast(res.status === 'approved' ? 'Request approved.' : 'Request forwarded to EC.', 'success');
+  } else if (type === 'reject') {
+    res = await api('PUT', `/api/events/${id}/reject`, { note });
+    if (res && !res.error) toast('Request rejected.', 'success');
+  } else if (type === 'forward_report') {
+    res = await api('PUT', `/api/reports/${id}/forward`, { note });
+    if (res && !res.error) toast('Report forwarded to EC.', 'success');
+  } else if (type === 'close_report') {
+    res = await api('PUT', `/api/reports/${id}/close`, { note });
+    if (res && !res.error) toast('Report closed.', 'success');
+  }
+
+  if (res && res.error) { toast(res.error, 'danger'); return; }
+
+  if (type === 'approve' || type === 'reject') {
+    allEvents = await api('GET', '/api/events') || [];
+    renderPendingEvents(); renderAllEventsTable(); renderHomePendingEvents();
+  } else {
+    allReports = await api('GET', '/api/reports') || [];
+    renderReports(); renderHomePendingReports();
+  }
+
+  const stats = await api('GET', '/api/stats');
+  if (stats) {
+    document.getElementById('stat-pending').textContent = stats.pending_requests ?? 0;
+    document.getElementById('stat-reports').textContent = stats.pending_reports ?? 0;
+    const n = stats.pending_requests;
+    ['req-badge','header-badge','approve-reqs-badge'].forEach(id => {
+      const el = document.getElementById(id);
+      if (el) { el.textContent = n; el.style.display = n > 0 ? '' : 'none'; }
+    });
+  }
+}
+
+// ── REPORTS ────────────────────────────────────────────────────────────────────
+async function loadReports() {
+  allReports = await api('GET', '/api/reports') || [];
+  renderReports();
+  renderHomePendingReports();
+}
+
+function renderHomePendingReports() {
+  const el = document.getElementById('home-pending-reports');
+  const pending = allReports.filter(r => r.status !== 'closed');
+  if (!pending.length) {
+    el.innerHTML = '<div class="text-muted text-sm" style="padding:1rem;">No pending reports.</div>';
+    return;
+  }
+  el.innerHTML = pending.slice(0, 4).map(r => `
+    <div class="activity-item">
+      <div class="activity-dot dot-blue"></div>
+      <div class="activity-info">
+        <div class="activity-title">${escHtml(r.title)}</div>
+        <div class="activity-meta">${escHtml(r.submitter_name || '—')} · ${fmtDate(r.created_at)}</div>
+      </div>
+      <span class="badge ${r.status === 'forwarded' ? 'badge-warning' : 'badge-info'}"
+            style="text-transform:capitalize;">${r.status}</span>
+    </div>`).join('');
+}
+
+function renderReports() {
+  const el = document.getElementById('reports-list');
+  if (!allReports.length) {
+    el.innerHTML = '<div class="card"><div class="card-body text-muted text-sm">No reports at GC level.</div></div>';
+    return;
+  }
+  const STATUS_COLORS = { submitted: 'badge-info', forwarded: 'badge-warning', closed: 'badge-neutral' };
+  el.innerHTML = allReports.map(r => `
+    <div class="card">
+      <div class="card-body">
+        <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:1rem;margin-bottom:0.75rem;">
+          <div>
+            <div class="font-semibold" style="font-size:1rem;">${escHtml(r.title)}</div>
+            <div class="text-muted text-sm mt-1">
+              From <strong>${escHtml(r.submitter_name || '—')}</strong>
+              · Submitted ${fmtDate(r.created_at)}
+              · Currently at: ${r.current_level}
+            </div>
+          </div>
+          <span class="badge ${STATUS_COLORS[r.status] || 'badge-neutral'}"
+                style="text-transform:capitalize;">${r.status}</span>
+        </div>
+        <div class="card" style="background:var(--bg);border:none;padding:1rem;font-size:0.875rem;
+                                  line-height:1.7;color:var(--text-secondary);white-space:pre-wrap;
+                                  max-height:150px;overflow-y:auto;">
+          ${escHtml(r.body)}
+        </div>
+        ${r.status !== 'closed' ? `
+        <div class="flex gap-2 mt-3">
+          <button class="btn btn-primary" onclick="promptAction('forward_report', ${r.id})">
+            ↑ Forward to EC
+          </button>
+          <button class="btn btn-secondary" onclick="promptAction('close_report', ${r.id})">
+            ✓ Close
+          </button>
+        </div>` : ''}
+      </div>
+    </div>`).join('');
+}
+
+// ── COMMUNICATIONS ──────────────────────────────────────────────────────────
+let commsTrackerEvts = [], commsTrackerRpts = [];
+
+async function loadComms() {
+  const [evts, rpts] = await Promise.all([
+    api('GET', '/api/events'),
+    api('GET', '/api/reports'),
+  ]);
+  commsTrackerEvts = (evts || []).filter(e => e.submitted_by === userData.id);
+  commsTrackerRpts = (rpts || []).filter(r => r.submitted_by === userData.id);
+  renderCommsTracker();
+}
+
+async function submitCommsRequest() {
+  const title = document.getElementById('cr-title').value.trim();
+  const location = document.getElementById('cr-location').value.trim();
+  const start_date = document.getElementById('cr-date').value;
+  const alertEl = document.getElementById('cr-alert');
+
+  if (!title || !location || !start_date) {
+    alertEl.innerHTML = '<div class="alert alert-danger"><span class="alert-icon">❌</span> Title, location and start date are required.</div>';
+    return;
+  }
+
+  const res = await api('POST', '/api/events', {
+    title,
+    description: document.getElementById('cr-desc').value.trim() || null,
+    location,
+    start_date,
+    end_date: document.getElementById('cr-date-end').value || null,
+    participants: parseInt(document.getElementById('cr-participants').value) || null,
+    notes: document.getElementById('cr-notes').value.trim() || null,
+    required_approval_level: document.getElementById('cr-approval-level').value,
+  });
+
+  if (res && res.id) {
+    alertEl.innerHTML = '<div class="alert alert-success"><span class="alert-icon">✅</span> Event request submitted to EC.</div>';
+    clearCommsRequestForm();
+    await loadComms();
+  } else {
+    alertEl.innerHTML = `<div class="alert alert-danger"><span class="alert-icon">❌</span> ${res?.error || 'Error submitting.'}</div>`;
+  }
+  setTimeout(() => alertEl.innerHTML = '', 4000);
+}
+
+function clearCommsRequestForm() {
+  ['cr-title','cr-desc','cr-date','cr-date-end','cr-location','cr-participants','cr-notes'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.value = '';
+  });
+  document.getElementById('cr-approval-level').value = 'ec';
+}
+
+async function submitCommsReport() {
+  const title = document.getElementById('crpt-title').value.trim();
+  const body = document.getElementById('crpt-body').value.trim();
+  const alertEl = document.getElementById('crpt-alert');
+
+  if (!title || !body) {
+    alertEl.innerHTML = '<div class="alert alert-danger"><span class="alert-icon">❌</span> Title and body are required.</div>';
+    return;
+  }
+
+  const res = await api('POST', '/api/reports', { title, body });
+  if (res && res.id) {
+    alertEl.innerHTML = '<div class="alert alert-success"><span class="alert-icon">✅</span> Report submitted to EC.</div>';
+    clearCommsReportForm();
+    await loadComms();
+  } else {
+    alertEl.innerHTML = `<div class="alert alert-danger"><span class="alert-icon">❌</span> ${res?.error || 'Error submitting.'}</div>`;
+  }
+  setTimeout(() => alertEl.innerHTML = '', 4000);
+}
+
+function clearCommsReportForm() {
+  document.getElementById('crpt-title').value = '';
+  document.getElementById('crpt-body').value = '';
+}
+
+function renderCommsTracker() {
+  const el = document.getElementById('comms-tracker-list');
+  const STATUS_BADGE = { pending: 'badge-warning', approved: 'badge-success', rejected: 'badge-danger' };
+  const STATUS_BADGE_RPT = { submitted: 'badge-info', forwarded: 'badge-warning', closed: 'badge-neutral' };
+  if (!commsTrackerEvts.length && !commsTrackerRpts.length) {
+    el.innerHTML = '<div class="card"><div class="card-body text-muted text-sm">No submissions yet.</div></div>';
+    return;
+  }
+  const evtHtml = commsTrackerEvts.map(e => `
+    <div class="card" style="margin-bottom:0;">
+      <div class="card-body" style="display:flex;justify-content:space-between;align-items:flex-start;gap:1rem;">
+        <div style="flex:1;min-width:0;">
+          <div class="flex gap-2 mb-1">
+            <span class="badge badge-neutral">Event</span>
+            <span class="font-semibold" style="font-size:0.95rem;">${escHtml(e.title)}</span>
+          </div>
+          <div class="text-muted text-sm">Submitted ${fmtDate(e.created_at)} · Needs: ${e.required_approval_level.toUpperCase()}</div>
+          <div class="flex gap-2 mt-2">
+            <span class="badge badge-warning">At: ${e.current_level}</span>
+          </div>
+        </div>
+        <span class="badge ${STATUS_BADGE[e.status] || 'badge-neutral'}" style="flex-shrink:0;text-transform:capitalize;">${e.status}</span>
+      </div>
+    </div>`).join('');
+  const rptHtml = commsTrackerRpts.map(r => `
+    <div class="card" style="margin-bottom:0;">
+      <div class="card-body" style="display:flex;justify-content:space-between;align-items:flex-start;gap:1rem;">
+        <div style="flex:1;min-width:0;">
+          <div class="flex gap-2 mb-1">
+            <span class="badge badge-neutral">Report</span>
+            <span class="font-semibold" style="font-size:0.95rem;">${escHtml(r.title)}</span>
+          </div>
+          <div class="text-muted text-sm">Submitted ${fmtDate(r.created_at)}</div>
+          <div class="text-sm mt-1" style="color:var(--text-secondary);">${escHtml(r.body).slice(0,120)}${r.body && r.body.length > 120 ? '…' : ''}</div>
+        </div>
+        <span class="badge ${STATUS_BADGE_RPT[r.status] || 'badge-neutral'}" style="flex-shrink:0;text-transform:capitalize;">${r.status}</span>
+      </div>
+    </div>`).join('');
+  el.innerHTML = evtHtml + rptHtml;
+}
+
+const SECTION_TITLES = {
+  home:    ['Dashboard',      'GC overview'],
+  users:   ['My Group',       'Manage your group'],
+  comms:   ['Communications', 'Send requests and reports, review and approve'],
+};
+
+let usersTabFilter = 'leaders';
+
+function showUsersTab(tab, btn) {
+  usersTabFilter = tab;
+  showSection('users', btn);
+  const titles = {
+    leaders: ['Leaders', 'Manage leaders in your scope'],
+    members: ['Members', 'View members in your scope'],
+  };
+  const t = titles[tab] || ['My Group', ''];
+  document.getElementById('section-title').textContent = t[0];
+  document.getElementById('section-subtitle').textContent = t[1];
+  renderUsersTable(allUsers);
+}
+
+function goToCommsTab(tabId) {
+  showSection('comms', null);
+  const targetPane = document.getElementById(tabId);
+  if (targetPane) {
+    targetPane.parentElement.querySelectorAll(':scope > .tab-pane').forEach(p => p.classList.remove('active'));
+    targetPane.classList.add('active');
+    const btn = document.querySelector(`#sec-comms > .tab-bar .tab-btn[onclick*="${tabId}"]`);
+    if (btn) {
+      document.querySelectorAll('#sec-comms > .tab-bar .tab-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+    }
+  }
+}
+
+function showSection(id, btn) {
+  document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+  document.getElementById('sec-' + id).classList.add('active');
+  if (btn) btn.classList.add('active');
+  const t = SECTION_TITLES[id] || [id, ''];
+  document.getElementById('section-title').textContent = t[0];
+  document.getElementById('section-subtitle').textContent = t[1];
+  document.getElementById('sidebar').classList.remove('open');
+}
+
+function switchTab(btn, paneId) {
+  const bar = btn.closest('.tab-bar');
+  bar.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  const targetPane = document.getElementById(paneId);
+  targetPane.parentElement.querySelectorAll(':scope > .tab-pane').forEach(p => p.classList.remove('active'));
+  targetPane.classList.add('active');
+}
+
+function toggleSidebar() { document.getElementById('sidebar').classList.toggle('open'); }
+
+function logout() {
+  sessionStorage.removeItem('lsa_token');
+  sessionStorage.removeItem('lsa_user');
+  window.location.href = 'index.html';
+}
+
+function toast(msg, type = 'success') {
+  const c = document.getElementById('toast-container');
+  const t = document.createElement('div');
+  t.className = `toast ${type}`;
+  const icons = { success: '✅', danger: '❌', warning: '⚠️' };
+  t.innerHTML = `<span>${icons[type] || 'ℹ️'}</span><span>${msg}</span>`;
+  c.appendChild(t);
+  setTimeout(() => t.remove(), 3500);
+}
+
+function escHtml(str) {
+  return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+function fmtDate(iso) {
+  if (!iso) return '—';
+  return new Date(iso).toLocaleDateString('en-GB', { day:'numeric', month:'short', year:'numeric' });
+}
+</script>
+</body>
+</html>
