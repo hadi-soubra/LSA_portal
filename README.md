@@ -51,17 +51,27 @@ No Node.js, no bundler, no frontend framework — just files.
 ```
 lsa-portal/
 ├── backend/
-│   ├── server.py          # Flask app + all API routes (~916 lines)
-│   ├── db.py              # Schema, seed data, DB helpers (~286 lines)
+│   ├── server.py          # Flask app + all API routes (~1076 lines)
+│   ├── db.py              # Schema, seed data, DB helpers (~306 lines)
 │   ├── requirements.txt   # Python dependencies
 │   └── lsa.db             # SQLite database (auto-created on first run)
+├── assets/
+│   ├── LSA-logo-header.png
+│   └── LSA-logo-header-compact.png
+├── styles/
+│   ├── shared.css         # Shared styles (~987 lines)
+│   ├── index.css          # Login page styles (~393 lines)
+│   ├── leader.css         # Leader dashboard overrides
+│   ├── member.css         # Member dashboard overrides
+│   ├── district.css       # District dashboard overrides
+│   ├── gc.css             # GC dashboard overrides
+│   └── ec.css             # EC dashboard overrides
 ├── index.html             # Login page
 ├── member.html            # Member dashboard
 ├── leader.html            # Leader dashboard (group/colored leaders)
 ├── gc.html                # General Commissioner dashboard
 ├── district.html          # District Commissioner dashboard
 ├── ec.html                # Executive Committee dashboard
-├── styles.css             # Shared CSS (~1200 lines)
 └── README.md
 ```
 
@@ -169,9 +179,9 @@ Event requests submitted by any level, traveling upward through the approval cha
 Status: `pending` → `approved` or `rejected`
 
 ### `reports`
-Reports submitted upward (leader → district → GC → EC). Each report tracks `current_level` and status.
+Reports submitted upward (leader → district → GC → EC). Each report tracks `current_level` (where it currently sits for review) and `required_approval_level` (where final approval must come from). Can optionally link to an approved `event_request` via `request_id`.
 
-Status: `submitted` → `forwarded` → `closed`
+Status: `pending` → `approved` or `rejected`
 
 ### `event_request_history` / `report_history`
 Audit trail tables — every approve/reject/forward action is logged with actor, timestamp, and optional note.
@@ -213,8 +223,9 @@ All endpoints under `/api/`. Protected endpoints require `Authorization: Bearer 
 |---|---|---|
 | GET | `/api/reports` | List reports visible to caller |
 | POST | `/api/reports` | Submit a new report |
-| PUT | `/api/reports/:id/forward` | Forward report to next level |
-| PUT | `/api/reports/:id/close` | Close a report |
+| GET | `/api/reports/eligible-requests` | Approved event requests with no report yet (for linking) |
+| PUT | `/api/reports/:id/approve` | Approve (forwards upward, or final-approves at required level) |
+| PUT | `/api/reports/:id/reject` | Reject a report |
 
 ### Other
 | Method | Endpoint | Description |
@@ -223,6 +234,8 @@ All endpoints under `/api/`. Protected endpoints require `Authorization: Bearer 
 | GET | `/api/groups` | All groups (used when creating district-level users) |
 | GET | `/api/districts` | All districts |
 | PUT | `/api/profile` | Update own name/email/password |
+| GET | `/api/events/inbox-history` | Event requests the caller has reviewed (not their own) |
+| GET | `/api/reports/inbox-history` | Reports the caller has reviewed (not their own) |
 
 ---
 
