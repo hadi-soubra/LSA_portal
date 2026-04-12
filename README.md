@@ -24,7 +24,7 @@ A role-based management portal for the **Lebanese Scout Association (LSA)**, bui
 
 ## Overview
 
-The portal enforces a **5-level hierarchy** with strict **color-silo** access control. Each user belongs to a level (EC → GC → District → Group → Member) and optionally a color branch (Pink/Cubs, Yellow, Green/Scouts, Red/Rovers). Data flows in one direction per type:
+The portal enforces a **5-level hierarchy** with strict **color-silo** access control. Each user belongs to a level (EC → GC → District → Group → Member) and optionally a color branch (Pink/pinkss, Yellow, Green/Scouts, Red/Rovers). Data flows in one direction per type:
 
 - **Content** (activities, resources, training) flows **downward**
 - **Reports** flow **upward**
@@ -131,7 +131,7 @@ Each user optionally belongs to a **color branch**:
 
 | Color | Branch |
 |---|---|
-| `pink` | Cubs |
+| `pink` | pinkss |
 | `yellow` | Yellows |
 | `green` | Scouts / Guides |
 | `red` | Rovers / Rangers |
@@ -244,9 +244,9 @@ All endpoints under `/api/`. Protected endpoints require `Authorization: Bearer 
 The seed generates usernames following these patterns:
 
 - **EC board:** `ec_president`, `ec_secretary`, `ec_treasurer`, `ec_honorary_president`, etc.
-- **GC board:** `gc_general_commissioner`, `gc_deputy_commissioner`, `gc_cubs_commissioner` (pink), `gc_scouts_commissioner` (green), etc.
+- **GC board:** `gc_general_commissioner`, `gc_deputy_commissioner`, `gc_pinkss_commissioner` (pink), `gc_scouts_commissioner` (green), etc.
 - **District commissioners:** `bei_commissioner`, `bek_commissioner`, `mnt_commissioner`, `sth_commissioner`, etc.
-- **Group leaders:** `bei_b1_group_leader`, `bei_b1_cubs_leader` (pink), `bei_b1_boyscouts_leader` (green), etc.
+- **Group leaders:** `bei_b1_group_leader`, `bei_b1_pinkss_leader` (pink), `bei_b1_boyscouts_leader` (green), etc.
 
 ---
 

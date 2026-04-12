@@ -192,7 +192,7 @@ def _build_users():
 
     # ── GC Color (4) ──────────────────────────────────────────────────────────
     gc_color = [
-        ('gc_cubs_commissioner',    'Commissioner for Cubs Branch',          'pink'),
+        ('gc_pinks_commissioner',    'Commissioner for pinks Branch',          'pink'),
         ('gc_yellows_commissioner', 'Commissioner for Yellows Branch',       'yellow'),
         ('gc_scouts_commissioner',  'Commissioner for Scouts/Guides Branch', 'green'),
         ('gc_rovers_commissioner',  'Commissioner for Rovers/Rangers Branch','red'),
@@ -211,7 +211,7 @@ def _build_users():
         ('leadership_dev', 'District Assistant for Leadership Development', None, 1),
     ]
     dist_color_roles = [
-        ('cubs',   'District Assistant for Cubs',           'pink'),
+        ('pinks',   'District Assistant for pinks',           'pink'),
         ('yellows','District Assistant for Yellows',        'yellow'),
         ('scouts', 'District Assistant for Scouts/Guides',  'green'),
         ('rovers', 'District Assistant for Rovers/Rangers', 'red'),
@@ -234,7 +234,7 @@ def _build_users():
     grp_roles = [
         ('group_leader',      'Group Leader',            None,     'leader', 'group'),
         ('admin_leader',      'Administrative Leader',   None,     'leader', 'group_admin'),
-        ('cubs_leader',       'Cubs Leader',             'pink',   'leader', 'group'),
+        ('pinks_leader',       'pinks Leader',             'pink',   'leader', 'group'),
         ('yellow_leader',     'Yellow Unit Leader',      'yellow', 'leader', 'group'),
         ('boyscouts_leader',  'Boy Scouts Troop Leader', 'green',  'leader', 'group'),
         ('girlscouts_leader', 'Girl Scouts Troop Leader','green',  'leader', 'group'),
