@@ -13,7 +13,7 @@ import jwt
 from flask import Flask, g, jsonify, request, send_from_directory
 from flask_cors import CORS
 
-from db import get_db_path, hash_password, init_db
+from db import get_db_path, hash_password, init_db, migrate_db
 
 # ── App setup ─────────────────────────────────────────────────────────────────
 
@@ -149,85 +149,104 @@ def _pack_users(rows, editable: bool) -> list[dict]:
 
 def _users_in_scope(actor: dict, db) -> list[dict]:
     """
-    Users visible to actor.
-    Each entry has an 'editable' boolean:
-      True  → actor may update/delete this user
-      False → actor may only view this user
+    Users visible to actor, with per-user 'editable' flag.
+
+    Edit ownership rules:
+      Members             → group head/admin only
+      Group leaders       → group head/admin only
+      Group head/admin    → district head/admin only
+      District leaders    → district head/admin only
+      District head/admin → GC head/admin only
+      GC leaders          → GC head/admin only
+      GC head/admin       → EC only
+      EC                  → outside UI
     """
-    lvl = actor['level']
-    color = actor['color']
+    lvl     = actor['level']
+    color   = actor['color']
+    is_func = bool(actor.get('is_functional', 0))
 
-    # ── No-color group head (Group Leader): all leaders + members in group ──────
-    if _is_group_leader(actor):
+    # ── Group-level leaders (dashboard='leader') ──────────────────────────────
+    if actor['dashboard'] == 'leader':
+        if color:
+            # Colored group leader: view-only, same-color members in own group
+            rows = db.execute(
+                _USER_BASE + " WHERE u.group_id=? AND u.level='member' AND u.color=?",
+                (actor['group_id'], color)).fetchall()
+            return _pack_users(rows, False)
+        # Group head (level='group', no color) or group admin (level='group_admin'):
+        # view + edit everyone in group
         rows = db.execute(
             _USER_BASE + " WHERE u.group_id=? AND u.level IN ('group','group_admin','member') AND u.id!=?",
             (actor['group_id'], actor['id'])).fetchall()
         return _pack_users(rows, True)
 
-    # ── No-color admin leader (group_admin): all leaders + members in group ────
-    if actor['level'] == 'group_admin' and not actor['color']:
-        rows = db.execute(
-            _USER_BASE + " WHERE u.group_id=? AND u.level IN ('group','group_admin','member') AND u.id!=?",
-            (actor['group_id'], actor['id'])).fetchall()
-        return _pack_users(rows, True)
-
-    # ── Colored group leader: members of same color in group ─────────────────
-    if _is_any_group_leader(actor):
-        rows = db.execute(
-            _USER_BASE + " WHERE u.group_id=? AND u.level='member' AND u.color=?",
-            (actor['group_id'], actor['color'])).fetchall()
-        return _pack_users(rows, True)
-
-    # ── District head ─────────────────────────────────────────────────────────
+    # ── District-level admins ─────────────────────────────────────────────────
     if lvl == 'district':
         if color:
-            peers = db.execute(
-                _USER_BASE + " WHERE u.level='district' AND u.district_id=? AND u.id!=?"
-                             " AND (u.color=? OR u.color IS NULL)",
-                (actor['district_id'], actor['id'], color)).fetchall()
-        else:
-            peers = db.execute(
-                _USER_BASE + " WHERE u.level='district' AND u.district_id=? AND u.id!=?",
-                (actor['district_id'], actor['id'])).fetchall()
+            # Colored district: view-only, same-color users in district
+            rows = db.execute(
+                _USER_BASE + " WHERE u.district_id=? AND u.color=? AND u.id!=?",
+                (actor['district_id'], color, actor['id'])).fetchall()
+            return _pack_users(rows, False)
+        if is_func:
+            # Functional district (music/PR/finance/etc): no user management
+            return []
+        # District head/admin (is_functional=0, no color):
+        #   editable → group heads (group, no color), group admins, district leaders (colored or functional)
+        #   view-only → other district heads/admins, colored group leaders, members
+        rows = db.execute(
+            _USER_BASE + " WHERE u.district_id=? AND u.id!=?",
+            (actor['district_id'], actor['id'])).fetchall()
+        result = []
+        for r in rows:
+            u = dict(r); u.pop('password_hash', None)
+            u['editable'] = (
+                (u['level'] == 'group' and not u['color']) or              # group head
+                u['level'] == 'group_admin' or                              # group admin
+                (u['level'] == 'district' and (u['color'] or u['is_functional']))  # district leaders only
+            )
+            result.append(u)
+        return result
 
-        lower = db.execute(
-            _USER_BASE + " WHERE u.district_id=? AND u.level IN ('group','member')",
-            (actor['district_id'],)).fetchall()
-        if color:
-            lower = [r for r in lower if not r['color'] or r['color'] == color]
-
-        return _pack_users(peers, True) + _pack_users(lower, False)
-
-    # ── GC head ───────────────────────────────────────────────────────────────
+    # ── GC-level admins ───────────────────────────────────────────────────────
     if lvl == 'gc':
         if color:
-            peers = db.execute(
-                _USER_BASE + " WHERE u.level='gc' AND u.id!=? AND u.color=?",
-                (actor['id'], color)).fetchall()
-            dist_rows = db.execute(_USER_BASE + " WHERE u.level='district'").fetchall()
-            dist_rows = [r for r in dist_rows if not r['color'] or r['color'] == color]
-            lower = db.execute(
-                _USER_BASE + " WHERE u.level IN ('group','member')").fetchall()
-            lower = [r for r in lower if not r['color'] or r['color'] == color]
-        else:
-            peers = db.execute(
-                _USER_BASE + " WHERE u.level='gc' AND u.id!=?",
-                (actor['id'],)).fetchall()
-            dist_rows = db.execute(_USER_BASE + " WHERE u.level='district'").fetchall()
-            lower = db.execute(
-                _USER_BASE + " WHERE u.level IN ('group','member')").fetchall()
+            # Colored GC: view-only, same-color users council-wide
+            rows = db.execute(
+                _USER_BASE + " WHERE u.color=? AND u.id!=?",
+                (color, actor['id'])).fetchall()
+            return _pack_users(rows, False)
+        if is_func:
+            # Functional GC (music/PR/finance/etc): no user management
+            return []
+        # GC head/admin (is_functional=0, no color):
+        #   editable → GC leaders (colored or functional), district heads/admins
+        #   view-only → other GC heads/admins, colored/functional district leaders, group level, members
+        #   not visible → EC users
+        rows = db.execute(
+            _USER_BASE + " WHERE u.id!=? AND u.level!='ec'", (actor['id'],)).fetchall()
+        result = []
+        for r in rows:
+            u = dict(r); u.pop('password_hash', None)
+            u['editable'] = (
+                (u['level'] == 'gc' and (u['color'] or u['is_functional'])) or     # GC leaders only
+                (u['level'] == 'district' and not u['color'] and not u['is_functional'])  # district heads
+            )
+            result.append(u)
+        return result
 
-        return _pack_users(peers, True) + _pack_users(dist_rows, False) + _pack_users(lower, False)
-
-    # ── EC head ───────────────────────────────────────────────────────────────
+    # ── EC-level admins ───────────────────────────────────────────────────────
     if lvl == 'ec':
-        ec_peers = db.execute(
-            _USER_BASE + " WHERE u.level='ec' AND u.id!=?",
-            (actor['id'],)).fetchall()
-        gc_rows = db.execute(_USER_BASE + " WHERE u.level='gc'").fetchall()
-        lower = db.execute(
-            _USER_BASE + " WHERE u.level IN ('district','group','member')").fetchall()
-        return _pack_users(ec_peers, True) + _pack_users(gc_rows, False) + _pack_users(lower, False)
+        # All EC users see everyone; only GC heads/admins are editable
+        rows = db.execute(_USER_BASE + " WHERE u.id!=?", (actor['id'],)).fetchall()
+        result = []
+        for r in rows:
+            u = dict(r); u.pop('password_hash', None)
+            u['editable'] = (
+                u['level'] == 'gc' and not u['color'] and not u['is_functional']
+            )
+            result.append(u)
+        return result
 
     return []
 
@@ -1053,4 +1072,5 @@ def update_profile():
 
 if __name__ == '__main__':
     init_db()
+    migrate_db()
     app.run(debug=True, port=5000)

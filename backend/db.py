@@ -176,18 +176,19 @@ def _build_users():
                         is_functional=1))
 
     # ── GC Functional (7) ─────────────────────────────────────────────────────
+    # is_functional=0 → management head/admin; 1 → support/functional role
     gc_func = [
-        ('gc_general_commissioner', 'General Commissioner'),
-        ('gc_deputy_commissioner',  'Deputy General Commissioner'),
-        ('gc_leadership_dev',       'Commissioner for Leadership Development'),
-        ('gc_admin',                'Administrative Commissioner'),
-        ('gc_finance',              'Financial Commissioner'),
-        ('gc_pr_media',             'Commissioner for PR & Media'),
-        ('gc_music',                'Music Commissioner'),
+        ('gc_general_commissioner', 'General Commissioner',                        0),
+        ('gc_deputy_commissioner',  'Deputy General Commissioner',                 0),
+        ('gc_admin',                'Administrative Commissioner',                 0),
+        ('gc_leadership_dev',       'Commissioner for Leadership Development',      1),
+        ('gc_finance',              'Financial Commissioner',                       1),
+        ('gc_pr_media',             'Commissioner for PR & Media',                  1),
+        ('gc_music',                'Music Commissioner',                           1),
     ]
-    for username, role in gc_func:
+    for username, role, is_func in gc_func:
         users.append(_u('GC ' + role, username, 'admin', None, 'gc', role,
-                        is_functional=1))
+                        is_functional=is_func))
 
     # ── GC Color (4) ──────────────────────────────────────────────────────────
     gc_color = [
@@ -202,12 +203,12 @@ def _build_users():
 
     # ── District users (10 per district × 4) ─────────────────────────────────
     dist_func_roles = [
-        ('commissioner',   'District Commissioner',                      None, 1),
-        ('admin',          'District Assistant for Administration',       None, 1),
-        ('music',          'District Assistant for Music',                None, 1),
-        ('pr_media',       'District Assistant for PR & Media',           None, 1),
-        ('finance',        'District Assistant for Finance',              None, 1),
-        ('leadership_dev', 'District Assistant for Leadership Development',None, 1),
+        ('commissioner',   'District Commissioner',                       None, 0),
+        ('admin',          'District Assistant for Administration',        None, 0),
+        ('music',          'District Assistant for Music',                 None, 1),
+        ('pr_media',       'District Assistant for PR & Media',            None, 1),
+        ('finance',        'District Assistant for Finance',               None, 1),
+        ('leadership_dev', 'District Assistant for Leadership Development', None, 1),
     ]
     dist_color_roles = [
         ('cubs',   'District Assistant for Cubs',           'pink'),
@@ -284,5 +285,22 @@ def init_db():
     print('Database initialized: 210 users seeded.')
 
 
+def migrate_db():
+    """Fix is_functional for management roles incorrectly seeded as functional."""
+    conn = sqlite3.connect(DB_PATH)
+    mgmt_usernames = (
+        # District heads/admins
+        [f'{prefix}_commissioner' for _, prefix, _ in DISTRICTS] +
+        [f'{prefix}_admin'        for _, prefix, _ in DISTRICTS] +
+        # GC heads/admins
+        ['gc_general_commissioner', 'gc_deputy_commissioner', 'gc_admin']
+    )
+    for username in mgmt_usernames:
+        conn.execute('UPDATE users SET is_functional=0 WHERE username=?', (username,))
+    conn.commit()
+    conn.close()
+
+
 if __name__ == '__main__':
     init_db()
+    migrate_db()

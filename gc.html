@@ -133,12 +133,12 @@
         <span class="nav-icon">🏠</span> Dashboard
       </button>
 
-      <span class="nav-section-label" style="margin-top:0.5rem;">My Group</span>
-      <button class="nav-item" id="nav-leaders" onclick="showUsersTab('leaders', this)">
+      <span class="nav-section-label" id="nav-mgmt-section" style="margin-top:0.5rem;display:none;">My GC</span>
+      <button class="nav-item" id="nav-leaders" onclick="showUsersTab('leaders', this)" style="display:none;">
         <span class="nav-icon">🧑‍✈️</span> Leaders
       </button>
-      <button class="nav-item" id="nav-members" onclick="showUsersTab('members', this)">
-        <span class="nav-icon">👤</span> Members
+      <button class="nav-item" id="nav-members" onclick="showUsersTab('members', this)" style="display:none;">
+        <span class="nav-icon">👥</span> Members
       </button>
 
       <span class="nav-section-label" style="margin-top:0.5rem;">Communications</span>
@@ -193,7 +193,7 @@
             <h3>District Commissioners</h3>
             <p>Manage district-level administrators</p>
           </div>
-          <button class="btn btn-primary" onclick="openAddUserModal()">+ Add Commissioner</button>
+          <button class="btn btn-primary" id="add-user-btn" onclick="openAddUserModal()" style="display:none;">+ Add Commissioner</button>
         </div>
 
         <div class="card mb-4">
@@ -372,6 +372,11 @@ async function api(method, path, body) {
   return r.json();
 }
 
+// ── Role helpers ─────────────────────────────────────────────────────────────
+const isGcHead        = userData && !userData.color && !userData.is_functional;
+const isColoredGc     = userData && !!userData.color;
+const isFunctionalGc  = userData && !userData.color && !!userData.is_functional;
+
 let allEvents = [], allReports = [], allUsers = [];
 let allDistrictsRef = [];
 
@@ -383,6 +388,13 @@ let allDistrictsRef = [];
     const colorTag = userData.color ? ` · ${userData.color.charAt(0).toUpperCase() + userData.color.slice(1)}` : '';
     document.getElementById('user-role-label').textContent =
       (userData.role_title || 'General Commissioner') + colorTag;
+  }
+
+  // My GC nav section: visible for head/admin and colored; hidden for functional
+  if (!isFunctionalGc) {
+    document.getElementById('nav-mgmt-section').style.display = '';
+    document.getElementById('nav-leaders').style.display = '';
+    document.getElementById('nav-members').style.display = '';
   }
 
   const [stats, districts] = await Promise.all([

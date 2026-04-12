@@ -143,12 +143,12 @@
         <span class="nav-icon">🏠</span> Dashboard
       </button>
 
-      <span class="nav-section-label" style="margin-top:0.5rem;">My Group</span>
-      <button class="nav-item" id="nav-leaders" onclick="showUsersTab('leaders', this)">
+      <span class="nav-section-label" id="nav-mgmt-section" style="margin-top:0.5rem;display:none;">My District</span>
+      <button class="nav-item" id="nav-leaders" onclick="showUsersTab('leaders', this)" style="display:none;">
         <span class="nav-icon">🧑‍✈️</span> Leaders
       </button>
-      <button class="nav-item" id="nav-members" onclick="showUsersTab('members', this)">
-        <span class="nav-icon">👤</span> Members
+      <button class="nav-item" id="nav-members" onclick="showUsersTab('members', this)" style="display:none;">
+        <span class="nav-icon">👥</span> Members
       </button>
 
       <span class="nav-section-label" style="margin-top:0.5rem;">Communications</span>
@@ -203,7 +203,7 @@
             <h3>Groups &amp; Members</h3>
             <p>Manage group leaders and members within your district</p>
           </div>
-          <button class="btn btn-primary" onclick="openAddUserModal()">+ Add User</button>
+          <button class="btn btn-primary" id="add-user-btn" onclick="openAddUserModal()" style="display:none;">+ Add User</button>
         </div>
 
         <div class="card mb-4">
@@ -387,6 +387,11 @@ async function api(method, path, body) {
   return r.json();
 }
 
+// ── Role helpers ─────────────────────────────────────────────────────────────
+const isDistrictHead     = userData && !userData.color && !userData.is_functional;
+const isColoredDistrict  = userData && !!userData.color;
+const isFunctionalDistrict = userData && !userData.color && !!userData.is_functional;
+
 // ── Page init ────────────────────────────────────────────────────────────────
 let allEvents = [], allReports = [], allUsers = [];
 let allGroupsRef = [], allDistrictsRef = [];
@@ -399,6 +404,17 @@ let allGroupsRef = [], allDistrictsRef = [];
     const colorTag = userData.color ? ` · ${userData.color.charAt(0).toUpperCase() + userData.color.slice(1)}` : '';
     document.getElementById('user-role-label').textContent =
       (userData.role_title || 'District Commissioner') + colorTag;
+  }
+
+  // My District nav section: visible for head/admin and colored; hidden for functional
+  if (!isFunctionalDistrict) {
+    document.getElementById('nav-mgmt-section').style.display = '';
+    document.getElementById('nav-leaders').style.display = '';
+    document.getElementById('nav-members').style.display = '';
+    // Add User button only for district head/admin
+    if (isDistrictHead) {
+      document.getElementById('add-user-btn').style.display = '';
+    }
   }
 
   const [stats, groups, districts] = await Promise.all([

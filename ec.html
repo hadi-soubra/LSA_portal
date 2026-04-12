@@ -113,12 +113,12 @@
         <span class="nav-icon">🏠</span> Dashboard
       </button>
 
-      <span class="nav-section-label" style="margin-top:0.5rem;">My Group</span>
+      <span class="nav-section-label" style="margin-top:0.5rem;">My EC</span>
       <button class="nav-item" id="nav-leaders" onclick="showUsersTab('leaders', this)">
         <span class="nav-icon">🧑‍✈️</span> Leaders
       </button>
       <button class="nav-item" id="nav-members" onclick="showUsersTab('members', this)">
-        <span class="nav-icon">👤</span> Members
+        <span class="nav-icon">👥</span> Members
       </button>
 
       <span class="nav-section-label" style="margin-top:0.5rem;">Communications</span>
@@ -165,7 +165,7 @@
             <h3>GC Commissioners</h3>
             <p>Manage general commissioner accounts</p>
           </div>
-          <button class="btn btn-primary" onclick="openAddUserModal()">+ Add Commissioner</button>
+          <button class="btn btn-primary" id="add-user-btn" onclick="openAddUserModal()" style="display:none;">+ Add Commissioner</button>
         </div>
 
         <div class="card mb-4">

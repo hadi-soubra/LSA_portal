@@ -29,7 +29,7 @@
         <span class="nav-icon">🧑‍✈️</span> Leaders
       </button>
       <button class="nav-item" id="nav-members" onclick="showGroupTab('members', this)" style="display:none;">
-        <span class="nav-icon">👤</span> Members
+        <span class="nav-icon">👥</span> Members
       </button>
 
       <span class="nav-section-label" style="margin-top:0.5rem;">Communications</span>
@@ -399,8 +399,10 @@ async function api(method, path, body) {
 }
 
 // ── Page init ────────────────────────────────────────────────────────────────
-const isGroupLeader = userData && (userData.level === 'group' || userData.level === 'group_admin');
-const isNoColorGroupLeader = isGroupLeader && !userData.color;
+const isGroupLeader      = userData && (userData.level === 'group' || userData.level === 'group_admin');
+const isColoredGroupLeader = isGroupLeader && !!userData.color;
+const isGroupHeadOrAdmin   = isGroupLeader && !userData.color;  // group head or group admin
+const isNoColorGroupLeader = isGroupHeadOrAdmin;                 // alias kept for comms logic
 
 (async function init() {
   if (userData) {
@@ -412,14 +414,22 @@ const isNoColorGroupLeader = isGroupLeader && !userData.color;
       (userData.role_title || 'Leader') + colorTag;
   }
 
-  // Show group management nav for group leaders (no color)
+  // Show My Group nav section for all group-level leaders
   if (isGroupLeader) {
-    document.getElementById('nav-leaders').style.display = '';
-    document.getElementById('nav-members').style.display = '';
     document.getElementById('nav-group-section').style.display = '';
+    document.getElementById('nav-members').style.display = '';
+    // Leaders tab only for group head/admin (not colored leaders)
+    if (isGroupHeadOrAdmin) {
+      document.getElementById('nav-leaders').style.display = '';
+    }
+    // Hide Add Member button for colored leaders (view-only)
+    if (isColoredGroupLeader) {
+      const addBtn = document.getElementById('add-member-btn');
+      if (addBtn) addBtn.style.display = 'none';
+    }
   }
 
-  // Show inbox nav for no-color group leaders (they receive requests and reports)
+  // Show inbox nav for group heads/admins (they receive requests and reports)
   if (isNoColorGroupLeader) {
     document.getElementById('nav-inbox-label').style.display = '';
     document.getElementById('nav-inbox-requests').style.display = '';
@@ -433,7 +443,6 @@ const isNoColorGroupLeader = isGroupLeader && !userData.color;
 
   loadComms();
   if (isGroupLeader) loadGroupUsers();
-  // group-only management; colored group leaders only submit, not manage
 })();
 
 // ── COMMUNICATIONS ──────────────────────────────────────────────────────────
@@ -795,7 +804,7 @@ function renderGroupUsers(users) {
   }
   const colorBg = c => ({ pink: '#FEE2E2', yellow: '#FEF3C7', green: '#D1FAE5', red: '#FEE2E2' }[c] || '#F3F4F6');
   tbody.innerHTML = display.map(u => `
-    <tr>
+    <tr style="${!u.editable ? 'opacity:0.85;' : ''}">
       <td class="td-name">${escHtml(u.name)}</td>
       <td><code>${escHtml(u.username)}</code></td>
       <td><span class="badge badge-neutral" style="text-transform:capitalize;">${u.level}</span></td>
@@ -803,8 +812,8 @@ function renderGroupUsers(users) {
       <td style="font-size:0.82rem;">${u.role_title ? escHtml(u.role_title) : '—'}</td>
       <td>
         <div class="flex gap-2">
-          <button class="btn btn-sm btn-secondary" onclick="openGmModal(${u.id})">✏️ Edit</button>
-          ${u.level === 'member' ? `<button class="btn btn-sm btn-danger" onclick="confirmDeleteMember(${u.id}, '${escHtml(u.name)}')">🗑️</button>` : ''}
+          ${u.editable ? `<button class="btn btn-sm btn-secondary" onclick="openGmModal(${u.id})">✏️ Edit</button>` : '<span class="text-muted text-sm">view only</span>'}
+          ${u.editable && u.level === 'member' ? `<button class="btn btn-sm btn-danger" onclick="confirmDeleteMember(${u.id}, '${escHtml(u.name)}')">🗑️</button>` : ''}
         </div>
       </td>
     </tr>`).join('');
