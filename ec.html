@@ -160,14 +160,6 @@
 
       <!-- ===== USERS ===== -->
       <div class="section" id="sec-users">
-        <div class="page-header" style="display:flex;justify-content:space-between;align-items:flex-start;">
-          <div>
-            <h3>GC Commissioners</h3>
-            <p>Manage general commissioner accounts</p>
-          </div>
-          <button class="btn btn-primary" id="add-user-btn" onclick="openAddUserModal()" style="display:none;">+ Add Commissioner</button>
-        </div>
-
         <div class="card mb-4">
           <div class="card-body" style="padding:1rem 1.5rem;">
             <div class="input-group">
@@ -201,7 +193,6 @@
 
       <!-- ===== INBOX — REQUESTS ===== -->
       <div class="section" id="sec-inbox-requests">
-        <div class="page-header"><h3>Received Requests</h3><p>Final approval — requests forwarded from GC commissioners</p></div>
         <div class="tab-bar">
           <button class="tab-btn active" onclick="switchTab(this, 'tab-inbox-req-pending')">⏳ Pending <span class="nav-badge" id="inbox-pending-badge" style="display:none;position:static;margin-left:4px;"></span></button>
           <button class="tab-btn" onclick="switchTab(this, 'tab-inbox-req-history')">📋 History</button>
@@ -219,7 +210,6 @@
 
       <!-- ===== INBOX — REPORTS ===== -->
       <div class="section" id="sec-inbox-reports">
-        <div class="page-header"><h3>Received Reports</h3><p>All escalated reports — review and close</p></div>
         <div class="tab-bar">
           <button class="tab-btn active" onclick="switchTab(this, 'tab-inbox-rpt-pending')">⏳ Pending</button>
           <button class="tab-btn" onclick="switchTab(this, 'tab-inbox-rpt-history')">📋 History</button>

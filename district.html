@@ -198,13 +198,6 @@
 
       <!-- ===== USERS ===== -->
       <div class="section" id="sec-users">
-        <div class="page-header" style="display:flex;justify-content:space-between;align-items:flex-start;">
-          <div>
-            <h3>Groups &amp; Members</h3>
-            <p>Manage group leaders and members within your district</p>
-          </div>
-          <button class="btn btn-primary" id="add-user-btn" onclick="openAddUserModal()" style="display:none;">+ Add User</button>
-        </div>
 
         <div class="card mb-4">
           <div class="card-body" style="padding:1rem 1.5rem;">
@@ -241,7 +234,6 @@
 
       <!-- ===== SEND REQUEST ===== -->
       <div class="section" id="sec-send-request">
-        <div class="page-header"><h3>Send Request</h3><p>Submit an event request for approval</p></div>
         <div class="card" style="margin-bottom:1.5rem;">
           <div class="card-header"><span class="card-title">📤 New Event Request</span></div>
           <div class="card-body">
@@ -274,7 +266,6 @@
 
       <!-- ===== SEND REPORT ===== -->
       <div class="section" id="sec-send-report">
-        <div class="page-header"><h3>Send Report</h3><p>Submit a report to GC</p></div>
         <div class="card" style="margin-bottom:1.5rem;">
           <div class="card-header"><span class="card-title">📊 New Report</span></div>
           <div class="card-body">
@@ -305,7 +296,6 @@
 
       <!-- ===== INBOX — REQUESTS ===== -->
       <div class="section" id="sec-inbox-requests">
-        <div class="page-header"><h3>Received Requests</h3><p>Review event requests from group leaders in your district</p></div>
         <div class="tab-bar">
           <button class="tab-btn active" onclick="switchTab(this, 'tab-inbox-req-pending')">⏳ Pending <span class="nav-badge" id="inbox-pending-badge" style="display:none;position:static;margin-left:4px;"></span></button>
           <button class="tab-btn" onclick="switchTab(this, 'tab-inbox-req-history')">📋 History</button>
@@ -324,7 +314,6 @@
 
       <!-- ===== INBOX — REPORTS ===== -->
       <div class="section" id="sec-inbox-reports">
-        <div class="page-header"><h3>Received Reports</h3><p>Review and forward reports from group leaders</p></div>
         <div class="tab-bar">
           <button class="tab-btn active" onclick="switchTab(this, 'tab-inbox-rpt-pending')">⏳ Pending</button>
           <button class="tab-btn" onclick="switchTab(this, 'tab-inbox-rpt-history')">📋 History</button>
@@ -342,7 +331,6 @@
 
       <!-- ===== TRACKER — REQUESTS ===== -->
       <div class="section" id="sec-tracker-requests">
-        <div class="page-header"><h3>Request Tracker</h3><p>Track all your submitted event requests</p></div>
         <div style="display:flex;gap:0.5rem;flex-wrap:wrap;margin-bottom:1rem;">
           <button class="btn btn-sm btn-primary" onclick="setTrackerFilter('requests','all',this)">All</button>
           <button class="btn btn-sm btn-secondary" onclick="setTrackerFilter('requests','pending',this)">Pending</button>
@@ -354,7 +342,6 @@
 
       <!-- ===== TRACKER — REPORTS ===== -->
       <div class="section" id="sec-tracker-reports">
-        <div class="page-header"><h3>Report Tracker</h3><p>Track all your submitted reports</p></div>
         <div style="display:flex;gap:0.5rem;flex-wrap:wrap;margin-bottom:1rem;">
           <button class="btn btn-sm btn-primary" onclick="setTrackerFilter('reports','all',this)">All</button>
           <button class="btn btn-sm btn-secondary" onclick="setTrackerFilter('reports','pending',this)">Pending</button>
@@ -411,10 +398,6 @@ let allGroupsRef = [], allDistrictsRef = [];
     document.getElementById('nav-mgmt-section').style.display = '';
     document.getElementById('nav-leaders').style.display = '';
     document.getElementById('nav-members').style.display = '';
-    // Add User button only for district head/admin
-    if (isDistrictHead) {
-      document.getElementById('add-user-btn').style.display = '';
-    }
   }
 
   const [stats, groups, districts] = await Promise.all([
