@@ -75,56 +75,6 @@
 
       <!-- ===== HOME ===== -->
       <div class="section active" id="sec-home">
-        <div class="stats-grid">
-          <div class="stat-card">
-            <div class="stat-icon amber">📝</div>
-            <div class="stat-info">
-              <div class="stat-value" id="stat-pending">…</div>
-              <div class="stat-label">Pending Requests</div>
-            </div>
-          </div>
-          <div class="stat-card">
-            <div class="stat-icon green">✅</div>
-            <div class="stat-info">
-              <div class="stat-value" id="stat-approved">…</div>
-              <div class="stat-label">Approved Events</div>
-            </div>
-          </div>
-          <div class="stat-card">
-            <div class="stat-icon blue">📊</div>
-            <div class="stat-info">
-              <div class="stat-value" id="stat-reports">…</div>
-              <div class="stat-label">Reports Submitted</div>
-            </div>
-          </div>
-        </div>
-
-        <div class="grid-2">
-          <div class="card">
-            <div class="card-header">
-              <span class="card-title">📡 Recent Submissions</span>
-              <button class="btn btn-sm btn-secondary" onclick="showSection('tracker-requests', null)">View All</button>
-            </div>
-            <div class="activity-list" id="home-events-preview">
-              <div class="text-muted text-sm" style="padding:1rem;">Loading…</div>
-            </div>
-          </div>
-
-          <div class="card">
-            <div class="card-header"><span class="card-title">⚡ Quick Actions</span></div>
-            <div class="card-body" style="display:flex;flex-direction:column;gap:0.75rem;">
-              <button class="btn btn-primary btn-full" onclick="showSection('send-request', null)">
-                📤 Submit Event Request
-              </button>
-              <button class="btn btn-secondary btn-full" onclick="showSection('send-report', null)">
-                📊 Submit Report
-              </button>
-              <button class="btn btn-outline-primary btn-full" onclick="showSection('tracker-requests', null)">
-                🗂 View Tracker
-              </button>
-            </div>
-          </div>
-        </div>
       </div>
 
       <!-- ===== SEND REQUEST ===== -->
@@ -477,13 +427,8 @@ const isNoColorGroupLeader = isGroupLeader && !userData.color;
   }
 
   const stats = await api('GET', '/api/stats');
-  if (stats) {
-    document.getElementById('stat-pending').textContent = stats.pending_requests ?? 0;
-    document.getElementById('stat-approved').textContent = stats.approved_events ?? 0;
-    document.getElementById('stat-reports').textContent = stats.submitted_reports ?? 0;
-    if (stats.pending_requests > 0) {
-      document.getElementById('hdr-badge-dot').style.display = '';
-    }
+  if (stats && stats.pending_requests > 0) {
+    document.getElementById('hdr-badge-dot').style.display = '';
   }
 
   loadComms();
@@ -536,24 +481,6 @@ async function loadComms() {
   renderInboxReportsHistory();
   renderTrackerRequests();
   renderTrackerReports();
-  renderCommsHomePreview();
-}
-
-function renderCommsHomePreview() {
-  const el = document.getElementById('home-events-preview');
-  if (!sentRequests.length) {
-    el.innerHTML = '<div class="text-muted text-sm" style="padding:1rem;">No submissions yet.</div>';
-    return;
-  }
-  el.innerHTML = sentRequests.slice(0, 4).map(e => `
-    <div class="activity-item">
-      <div class="activity-dot dot-${e.status === 'approved' ? 'green' : e.status === 'rejected' ? 'red' : 'amber'}"></div>
-      <div class="activity-info">
-        <div class="activity-title">${escHtml(e.title)}</div>
-        <div class="activity-meta">${e.location ? escHtml(e.location) + ' · ' : ''}${e.start_date || ''}</div>
-      </div>
-      <span class="badge ${STATUS_BADGE[e.status] || 'badge-neutral'}" style="text-transform:capitalize;">${e.status}</span>
-    </div>`).join('');
 }
 
 function renderSentRequests() {

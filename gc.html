@@ -184,51 +184,6 @@
 
       <!-- ===== HOME ===== -->
       <div class="section active" id="sec-home">
-        <div class="stats-grid">
-          <div class="stat-card">
-            <div class="stat-icon amber">📝</div>
-            <div class="stat-info">
-              <div class="stat-value" id="stat-pending">…</div>
-              <div class="stat-label">Pending Requests</div>
-            </div>
-          </div>
-          <div class="stat-card">
-            <div class="stat-icon blue">👥</div>
-            <div class="stat-info">
-              <div class="stat-value" id="stat-users">…</div>
-              <div class="stat-label">District Commissioners</div>
-            </div>
-          </div>
-          <div class="stat-card">
-            <div class="stat-icon purple">📋</div>
-            <div class="stat-info">
-              <div class="stat-value" id="stat-reports">…</div>
-              <div class="stat-label">Pending Reports</div>
-            </div>
-          </div>
-        </div>
-
-        <div class="grid-2">
-          <div class="card">
-            <div class="card-header">
-              <span class="card-title">⏳ Pending Event Requests</span>
-              <button class="btn btn-sm btn-primary" onclick="showSection('inbox-requests', null)">Review All</button>
-            </div>
-            <div class="activity-list" id="home-pending-events">
-              <div class="text-muted text-sm" style="padding:1rem;">Loading…</div>
-            </div>
-          </div>
-
-          <div class="card">
-            <div class="card-header">
-              <span class="card-title">📋 Pending Reports</span>
-              <button class="btn btn-sm btn-secondary" onclick="showSection('inbox-reports', null)">View All</button>
-            </div>
-            <div class="activity-list" id="home-pending-reports">
-              <div class="text-muted text-sm" style="padding:1rem;">Loading…</div>
-            </div>
-          </div>
-        </div>
       </div>
 
       <!-- ===== USERS ===== -->
@@ -437,20 +392,15 @@ let allDistrictsRef = [];
 
   allDistrictsRef = districts || [];
 
-  if (stats) {
-    document.getElementById('stat-pending').textContent = stats.pending_requests ?? 0;
-    document.getElementById('stat-users').textContent = stats.total_managed_users ?? 0;
-    document.getElementById('stat-reports').textContent = stats.pending_reports ?? 0;
-    if (stats.pending_requests > 0) {
-      const n = stats.pending_requests;
-      ['header-badge'].forEach(id => {
-        const el = document.getElementById(id);
-        if (el) { el.textContent = n; el.style.display = ''; }
-      });
-    }
+  if (stats && stats.pending_requests > 0) {
+    const n = stats.pending_requests;
+    ['header-badge'].forEach(id => {
+      const el = document.getElementById(id);
+      if (el) { el.textContent = n; el.style.display = ''; }
+    });
   }
 
-  await Promise.all([loadUsers(), loadEvents(), loadReports(), loadComms()]);
+  await Promise.all([loadUsers(), loadEvents(), loadComms()]);
 })();
 
 // ── USERS ─────────────────────────────────────────────────────────────────────
@@ -594,7 +544,6 @@ async function modalConfirm() {
 // ── EVENT REQUESTS ─────────────────────────────────────────────────────────────
 async function loadEvents() {
   allEvents = await api('GET', '/api/events') || [];
-  renderHomePendingEvents();
 }
 
 const STATUS_BADGE = {
@@ -603,28 +552,6 @@ const STATUS_BADGE = {
   rejected: 'badge-danger',
 };
 const STATUS_BADGE_RPT = { pending: 'badge-warning', approved: 'badge-success', rejected: 'badge-danger' };
-
-function renderHomePendingEvents() {
-  const el = document.getElementById('home-pending-events');
-  const pending = allEvents.filter(e => e.status === 'pending');
-  if (!pending.length) {
-    el.innerHTML = '<div class="text-muted text-sm" style="padding:1rem;">No pending requests.</div>';
-    return;
-  }
-  el.innerHTML = pending.slice(0, 4).map(e => `
-    <div class="activity-item">
-      <div class="activity-dot dot-amber"></div>
-      <div class="activity-info">
-        <div class="activity-title">${escHtml(e.title)}</div>
-        <div class="activity-meta">${escHtml(e.submitter_name || '')} · ${e.start_date || ''}</div>
-      </div>
-      <div class="flex gap-2">
-        <button class="btn btn-sm btn-success" onclick="promptAction('approve', ${e.id})">✓</button>
-        <button class="btn btn-sm btn-danger"  onclick="promptAction('reject',  ${e.id})">✕</button>
-      </div>
-    </div>`).join('');
-}
-
 
 let pendingAction = null;
 
@@ -671,8 +598,6 @@ async function executeAction() {
 
   const stats = await api('GET', '/api/stats');
   if (stats) {
-    document.getElementById('stat-pending').textContent = stats.pending_requests ?? 0;
-    document.getElementById('stat-reports').textContent = stats.pending_reports ?? 0;
     const n = stats.pending_requests;
     ['header-badge'].forEach(id => {
       const el = document.getElementById(id);
@@ -680,32 +605,6 @@ async function executeAction() {
     });
   }
 }
-
-// ── REPORTS ────────────────────────────────────────────────────────────────────
-async function loadReports() {
-  allReports = await api('GET', '/api/reports') || [];
-  renderHomePendingReports();
-}
-
-function renderHomePendingReports() {
-  const el = document.getElementById('home-pending-reports');
-  const pending = allReports.filter(r => r.status !== 'closed');
-  if (!pending.length) {
-    el.innerHTML = '<div class="text-muted text-sm" style="padding:1rem;">No pending reports.</div>';
-    return;
-  }
-  el.innerHTML = pending.slice(0, 4).map(r => `
-    <div class="activity-item">
-      <div class="activity-dot dot-blue"></div>
-      <div class="activity-info">
-        <div class="activity-title">${escHtml(r.title)}</div>
-        <div class="activity-meta">${escHtml(r.submitter_name || '—')} · ${fmtDate(r.created_at)}</div>
-      </div>
-      <span class="badge ${r.status === 'forwarded' ? 'badge-warning' : 'badge-info'}"
-            style="text-transform:capitalize;">${r.status}</span>
-    </div>`).join('');
-}
-
 
 // ── COMMUNICATIONS ──────────────────────────────────────────────────────────
 let sentRequests = [], sentReports = [], inboxRequests = [], inboxReports = [];
