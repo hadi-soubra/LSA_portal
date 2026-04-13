@@ -220,7 +220,7 @@ select.form-control { cursor: pointer; }
 /* ============================================================
    TABLET — stack brand on top, form below (two rows)
    ============================================================ */
-@media (max-width: 900px) {
+@media (max-width: 769px) {
   .login-page {
     grid-template-columns: 1fr;
     min-height: 100dvh;
