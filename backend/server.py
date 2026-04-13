@@ -1068,6 +1068,17 @@ def update_profile():
     u.pop('password_hash')
     return jsonify(u)
 
+# ── Debug ─────────────────────────────────────────────────────────────────────
+
+@app.route('/api/debug/viewport', methods=['POST'])
+def debug_viewport():
+    data = request.get_json(silent=True) or {}
+    w = data.get('width', '?')
+    h = data.get('height', '?')
+    orientation = 'landscape (push)' if isinstance(w, int) and isinstance(h, int) and w > h else 'portrait (overlay)'
+    print(f'[viewport] {w}w x {h}h — {orientation}', flush=True)
+    return '', 204
+
 # ── Entry point ───────────────────────────────────────────────────────────────
 
 if __name__ == '__main__':

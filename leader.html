@@ -9,6 +9,8 @@
 </head>
 <body>
 <div id="toast-container"></div>
+<div class="panel-backdrop" id="sidebar-backdrop" onclick="toggleSidebar()"></div>
+<div class="panel-backdrop" id="chat-backdrop" onclick="toggleChatbot()"></div>
 
 <div class="app">
   <!-- SIDEBAR -->
@@ -69,6 +71,7 @@
         <h2 id="section-title">Dashboard</h2>
         <p id="section-subtitle">Leader overview</p>
       </div>
+      <button class="chat-toggle" onclick="toggleChatbot()" title="Open Assistant">💬</button>
     </header>
 
     <div class="content">
@@ -269,6 +272,14 @@
 
     </div><!-- /content -->
   </div><!-- /main -->
+
+  <aside class="chat-panel" id="chat-panel">
+    <div class="chat-panel-header">
+      <span class="chat-panel-title">Assistant</span>
+      <button class="modal-close" onclick="toggleChatbot()">✕</button>
+    </div>
+    <div class="chat-panel-body"></div>
+  </aside>
 </div><!-- /app -->
 
 <!-- Add member modal (group leader only) -->

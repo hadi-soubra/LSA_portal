@@ -705,7 +705,32 @@ function switchTab(btn, paneId) {
   targetPane.classList.add('active');
 }
 
-function toggleSidebar() { document.getElementById('sidebar').classList.toggle('open'); }
+function toggleSidebar() {
+  document.getElementById('sidebar').classList.toggle('open');
+  document.getElementById('sidebar-backdrop').classList.toggle('open');
+}
+function toggleChatbot() {
+  const panel = document.getElementById('chat-panel');
+  const main  = document.querySelector('.main');
+  const isOpen = panel.classList.toggle('open');
+  const isLandscape = window.innerWidth > window.innerHeight;
+  main.classList.toggle('chat-open', isOpen && isLandscape);
+  document.getElementById('chat-backdrop').classList.toggle('open', isOpen);
+  document.querySelector('.app').classList.toggle('chat-active', isOpen);
+}
+
+let _lastLandscape = window.innerWidth > window.innerHeight;
+window.addEventListener('resize', () => {
+  const isLandscape = window.innerWidth > window.innerHeight;
+  if (isLandscape === _lastLandscape) return;
+  _lastLandscape = isLandscape;
+  document.getElementById('sidebar').classList.remove('open');
+  document.getElementById('sidebar-backdrop').classList.remove('open');
+  document.getElementById('chat-panel').classList.remove('open');
+  document.getElementById('chat-backdrop').classList.remove('open');
+  document.querySelector('.main').classList.remove('chat-open');
+  document.querySelector('.app').classList.remove('chat-active');
+});
 
 function logout() {
   sessionStorage.removeItem('lsa_token');
