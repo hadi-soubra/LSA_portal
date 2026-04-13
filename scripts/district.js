@@ -694,6 +694,7 @@ function showSection(id, btn) {
   document.getElementById('section-title').textContent = t[0];
   document.getElementById('section-subtitle').textContent = t[1];
   document.getElementById('sidebar').classList.remove('open');
+  document.getElementById('sidebar-backdrop').classList.remove('open');
 }
 
 function switchTab(btn, paneId) {
