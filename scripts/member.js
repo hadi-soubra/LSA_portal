@@ -83,11 +83,14 @@ const SECTION_TITLES = {
   home:         ['Dashboard',                `Welcome back, ${userData?.name?.split(' ')[0] || 'Scout'}!`],
   profile:      ['My Profile',              'View and update your information'],
   partnerships: ['Partnerships & Rewards',  'Exclusive member benefits'],
+  'content-info':      ['Content', 'Info'],
+  'content-education': ['Content', 'Education'],
+  'content-promotion': ['Content', 'Promotion'],
 };
 
 function showSection(id, btn) {
   document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
-  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+  document.querySelectorAll('.nav-item, .nav-sub-item').forEach(n => n.classList.remove('active'));
   document.getElementById('sec-' + id).classList.add('active');
   if (btn) btn.classList.add('active');
   const t = SECTION_TITLES[id] || [id, ''];

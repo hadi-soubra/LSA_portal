@@ -16,22 +16,28 @@
   <!-- SIDEBAR -->
   <aside class="sidebar" id="sidebar">
     <div class="sidebar-header">
-      <div class="sidebar-logo">🏕️</div>
+      <div class="sidebar-logo"><img src="assets/LSA-logo-header-compact.png" alt="LSA" style="height:52px;"></div>
       <div class="sidebar-title">LSA Portal <small>Member Zone</small></div>
     </div>
 
     <nav class="sidebar-nav">
-      <span class="nav-section-label">Main</span>
-      <button class="nav-item active" onclick="showSection('home', this)">
-        <span class="nav-icon">🏠</span> Dashboard
+      <span class="nav-section-label">🏠 Main</span>
+      <button class="nav-sub-item active" onclick="showSection('home', this)">
+        Dashboard
       </button>
-      <button class="nav-item" onclick="showSection('profile', this)">
-        <span class="nav-icon">👤</span> My Profile
+      <button class="nav-sub-item" onclick="showSection('profile', this)">
+        My Profile
       </button>
-      <span class="nav-section-label" style="margin-top:0.5rem;">More</span>
-      <button class="nav-item" onclick="showSection('partnerships', this)">
-        <span class="nav-icon">🤝</span> Partnerships &amp; Rewards
+      <span class="nav-section-label" style="margin-top:0.5rem;">⚙️ More</span>
+      <button class="nav-sub-item" onclick="showSection('partnerships', this)">
+        Partnerships &amp; Rewards
       </button>
+
+      <span class="nav-section-label" style="margin-top:0.5rem;">📄 Content</span>
+      <span class="nav-group-label">Received Content</span>
+      <button class="nav-sub-item" onclick="showSection('content-info', this)">Info</button>
+      <button class="nav-sub-item" onclick="showSection('content-education', this)">Education</button>
+      <button class="nav-sub-item" onclick="showSection('content-promotion', this)">Promotion</button>
     </nav>
 
     <div class="sidebar-footer">
@@ -193,6 +199,15 @@
           </div>
         </div>
       </div>
+
+      <!-- ===== CONTENT — RECEIVED: INFO ===== -->
+      <div class="section" id="sec-content-info"></div>
+
+      <!-- ===== CONTENT — RECEIVED: EDUCATION ===== -->
+      <div class="section" id="sec-content-education"></div>
+
+      <!-- ===== CONTENT — RECEIVED: PROMOTION ===== -->
+      <div class="section" id="sec-content-promotion"></div>
 
     </div><!-- /content -->
   </div><!-- /main -->

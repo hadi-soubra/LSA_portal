@@ -21,35 +21,45 @@
     </div>
 
     <nav class="sidebar-nav">
-      <span class="nav-section-label">Main</span>
-      <button class="nav-item active" onclick="showSection('home', this)">
-        <span class="nav-icon">🏠</span> Dashboard
+      <span class="nav-section-label">🏠 Main</span>
+      <button class="nav-sub-item active" onclick="showSection('home', this)">
+        Dashboard
       </button>
 
-      <span class="nav-section-label" id="nav-group-section" style="margin-top:0.5rem;display:none;">My Group</span>
-      <button class="nav-item" id="nav-leaders" onclick="showGroupTab('leaders', this)" style="display:none;">
-        <span class="nav-icon">🧑‍✈️</span> Leaders
+      <span class="nav-section-label" id="nav-group-section" style="margin-top:0.5rem;display:none;">👥 My Group</span>
+      <button class="nav-sub-item" id="nav-leaders" onclick="showGroupTab('leaders', this)" style="display:none;">
+        Leaders
       </button>
-      <button class="nav-item" id="nav-members" onclick="showGroupTab('members', this)" style="display:none;">
-        <span class="nav-icon">👥</span> Members
+      <button class="nav-sub-item" id="nav-members" onclick="showGroupTab('members', this)" style="display:none;">
+        Members
       </button>
 
-      <span class="nav-section-label" style="margin-top:0.5rem;">Communications</span>
+      <span class="nav-section-label" style="margin-top:0.5rem;">💬 Communications</span>
 
-      <span class="nav-group-label">📤 Outbox</span>
+      <span class="nav-group-label">Outbox</span>
       <button class="nav-sub-item" onclick="showSection('send-request', this)">Send Request</button>
       <button class="nav-sub-item" onclick="showSection('send-report', this)">Send Report</button>
 
-      <span class="nav-group-label" id="nav-inbox-label" style="display:none;">📥 Inbox</span>
+      <span class="nav-group-label" id="nav-inbox-label" style="display:none;">Inbox</span>
       <button class="nav-sub-item" id="nav-inbox-requests" style="display:none;" onclick="showSection('inbox-requests', this)">
         Requests <span class="nav-badge" id="inbox-req-badge" style="display:none;">0</span>
       </button>
       <button class="nav-sub-item" id="nav-inbox-reports" style="display:none;" onclick="showSection('inbox-reports', this)">Reports</button>
 
-      <span class="nav-group-label">🗂 Tracker</span>
+      <span class="nav-group-label">Tracker</span>
       <button class="nav-sub-item" onclick="showSection('tracker-requests', this)">Requests</button>
       <button class="nav-sub-item" onclick="showSection('tracker-reports', this)">Reports</button>
+
+      <span class="nav-section-label" style="margin-top:0.5rem;">📄 Content</span>
+      <span class="nav-group-label">Send Content</span>
+      <button class="nav-sub-item" onclick="showSection('content-send-members', this)">Send to Members</button>
+      <button class="nav-sub-item" onclick="showSection('content-send-leaders', this)">Send to Leaders</button>
+      <span class="nav-group-label">Received Content</span>
+      <button class="nav-sub-item" onclick="showSection('content-info', this)">Info</button>
+      <button class="nav-sub-item" onclick="showSection('content-education', this)">Education</button>
+      <button class="nav-sub-item" onclick="showSection('content-promotion', this)">Promotion</button>
     </nav>
+
 
     <div class="sidebar-footer">
       <div class="sidebar-user">
@@ -236,18 +246,29 @@
         </div>
       </div>
 
+      <!-- ===== CONTENT — SEND TO MEMBERS ===== -->
+      <div class="section" id="sec-content-send-members"></div>
+
+      <!-- ===== CONTENT — SEND TO LEADERS ===== -->
+      <div class="section" id="sec-content-send-leaders"></div>
+
+      <!-- ===== CONTENT — RECEIVED: INFO ===== -->
+      <div class="section" id="sec-content-info"></div>
+
+      <!-- ===== CONTENT — RECEIVED: EDUCATION ===== -->
+      <div class="section" id="sec-content-education"></div>
+
+      <!-- ===== CONTENT — RECEIVED: PROMOTION ===== -->
+      <div class="section" id="sec-content-promotion"></div>
+
       <!-- ===== MY GROUP (group leaders only) ===== -->
       <div class="section" id="sec-group">
 
 
-        <div class="card mb-4">
-          <div class="card-body" style="padding:1rem 1.5rem;">
-            <div class="input-group">
-              <input class="form-control" type="text" placeholder="Search by name or username…"
-                     id="group-search" oninput="filterGroupUsers()" />
-              <button class="btn btn-primary">🔍</button>
-            </div>
-          </div>
+        <div class="input-group" style="margin-bottom:1rem;">
+          <input class="form-control" type="text" placeholder="Search by name or username…"
+                 id="group-search" oninput="filterGroupUsers()" />
+          <button class="btn btn-primary">🔍</button>
         </div>
 
         <div class="page-header">

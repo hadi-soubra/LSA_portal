@@ -573,6 +573,11 @@ const SECTION_TITLES = {
   'inbox-reports':    ['Received Reports',   'Review and forward reports from districts'],
   'tracker-requests': ['Request Tracker',    'Track your submitted requests'],
   'tracker-reports':  ['Report Tracker',     'Track your submitted reports'],
+  'content-send-members': ['Content', 'Send to Members'],
+  'content-send-leaders': ['Content', 'Send to Leaders'],
+  'content-info':      ['Content', 'Info'],
+  'content-education': ['Content', 'Education'],
+  'content-promotion': ['Content', 'Promotion'],
 };
 
 let usersTabFilter = 'leaders';

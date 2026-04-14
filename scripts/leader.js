@@ -534,6 +534,11 @@ const SECTION_TITLES = {
   'tracker-requests':['Request Tracker','Track your submitted requests'],
   'tracker-reports': ['Report Tracker', 'Track your submitted reports'],
   group:            ['My Group',        'View and edit your group'],
+  'content-send-members': ['Content', 'Send to Members'],
+  'content-send-leaders': ['Content', 'Send to Leaders'],
+  'content-info':      ['Content', 'Info'],
+  'content-education': ['Content', 'Education'],
+  'content-promotion': ['Content', 'Promotion'],
 };
 
 let groupTabFilter = 'all';
