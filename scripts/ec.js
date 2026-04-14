@@ -376,6 +376,11 @@ const SECTION_TITLES = {
   users:            ['My Group',          'Manage your group'],
   'inbox-requests': ['Received Requests', 'Final approval — requests from GC commissioners'],
   'inbox-reports':  ['Received Reports',  'All escalated reports — review and close'],
+  'content-send-members': ['Content', 'Send to Members'],
+  'content-send-leaders': ['Content', 'Send to Leaders'],
+  'content-info':      ['Content', 'Info'],
+  'content-education': ['Content', 'Education'],
+  'content-promotion': ['Content', 'Promotion'],
 };
 
 let usersTabFilter = 'leaders';
