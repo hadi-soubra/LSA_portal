@@ -1,6 +1,7 @@
 // ── Auth guard ──────────────────────────────────────────────────────────────
-const lsaToken = sessionStorage.getItem('lsa_token');
-const userData = JSON.parse(sessionStorage.getItem('lsa_user') || 'null');
+const lsaToken  = sessionStorage.getItem('lsa_token');
+const userData  = JSON.parse(sessionStorage.getItem('lsa_user')   || 'null');
+const personData = JSON.parse(sessionStorage.getItem('lsa_person') || 'null');
 if (!lsaToken || !userData || userData.dashboard !== 'leader') {
   window.location.href = 'index.html';
 }
@@ -25,9 +26,10 @@ const isNoColorGroupLeader = isGroupHeadOrAdmin;                 // alias kept f
 
 (async function init() {
   if (userData) {
-    const initials = userData.name.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase();
+    const displayName = (personData && personData.name) || userData.name;
+    const initials = displayName.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase();
     document.getElementById('user-avatar').textContent = initials;
-    document.getElementById('user-name').textContent = userData.name;
+    document.getElementById('user-name').textContent = displayName;
     const colorTag = userData.color ? ` · ${userData.color.charAt(0).toUpperCase() + userData.color.slice(1)}` : '';
     document.getElementById('user-role-label').textContent =
       (userData.role_title || 'Leader') + colorTag;
@@ -418,36 +420,44 @@ function renderGroupUsers(users) {
   else if (groupTabFilter === 'members') display = users.filter(u => u.level === 'member');
   const tbody = document.getElementById('group-users-tbody');
   if (!display.length) {
-    tbody.innerHTML = '<tr><td colspan="6" class="text-muted text-sm" style="padding:1rem;">No users in this category.</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="5" class="text-muted text-sm" style="padding:1rem;">No users in this category.</td></tr>';
     return;
   }
   const colorBg = c => ({ pink: '#FEE2E2', yellow: '#FEF3C7', green: '#D1FAE5', red: '#FEE2E2' }[c] || '#F3F4F6');
-  tbody.innerHTML = display.map(u => `
+  tbody.innerHTML = display.map(u => {
+    const displayName  = u.person_name  || u.name;
+    const displayEmail = u.person_email || '—';
+    return `
     <tr style="${!u.editable ? 'opacity:0.85;' : ''}">
-      <td class="td-name">${escHtml(u.name)}</td>
-      <td><code>${escHtml(u.username)}</code></td>
+      <td class="td-name">
+        <div>${escHtml(displayName)}</div>
+        <div style="font-size:0.77rem;color:var(--text-muted);">${escHtml(displayEmail)}</div>
+      </td>
       <td><span class="badge badge-neutral" style="text-transform:capitalize;">${u.level}</span></td>
       <td>${u.color ? `<span class="badge" style="background:${colorBg(u.color)};color:#333;">${u.color}</span>` : '<span class="text-muted">—</span>'}</td>
       <td style="font-size:0.82rem;">${u.role_title ? escHtml(u.role_title) : '—'}</td>
       <td>
         <div class="flex gap-2">
-          ${u.editable ? `<button class="btn btn-sm btn-secondary" onclick="openGmModal(${u.id})">✏️ Edit</button>` : '<span class="text-muted text-sm">view only</span>'}
-          ${u.editable && u.level === 'member' ? `<button class="btn btn-sm btn-danger" onclick="confirmDeleteMember(${u.id}, '${escHtml(u.name)}')">🗑️</button>` : ''}
+          ${u.editable ? `<button class="btn btn-sm btn-secondary" onclick="openGmModal(${u.person_id})">✏️ Edit</button>` : '<span class="text-muted text-sm">view only</span>'}
+          ${u.editable && u.level === 'member' ? `<button class="btn btn-sm btn-danger" onclick="confirmDeleteMember(${u.person_id}, '${escHtml(displayName)}')">🗑️</button>` : ''}
         </div>
       </td>
-    </tr>`).join('');
+    </tr>`;
+  }).join('');
 }
 
 function filterGroupUsers() {
   const q = document.getElementById('group-search').value.toLowerCase();
   renderGroupUsers(allGroupUsers.filter(u =>
-    u.name.toLowerCase().includes(q) || u.username.toLowerCase().includes(q)
+    (u.person_name  || u.name).toLowerCase().includes(q) ||
+    (u.person_email || '').toLowerCase().includes(q)
   ));
 }
 
 function openAddMemberModal() {
-  ['am-name','am-username','am-password','am-email','am-role-title'].forEach(id => {
-    document.getElementById(id).value = '';
+  ['am-name','am-email','am-password','am-role-title'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.value = '';
   });
   const colorSel = document.getElementById('am-color');
   if (userData && userData.color) { colorSel.value = userData.color; colorSel.disabled = true; }
@@ -460,17 +470,16 @@ function closeAddMemberModal() { document.getElementById('am-modal').classList.r
 
 async function saveNewMember() {
   const name      = document.getElementById('am-name').value.trim();
-  const username  = document.getElementById('am-username').value.trim();
+  const email     = document.getElementById('am-email').value.trim();
   const password  = document.getElementById('am-password').value;
-  const email     = document.getElementById('am-email').value.trim() || null;
   const color     = document.getElementById('am-color').value || null;
-  const roleTitle = document.getElementById('am-role-title').value.trim() || null;
+  const roleTitle = document.getElementById('am-role-title').value?.trim() || null;
   const alertEl   = document.getElementById('am-alert');
-  if (!name || !username || !password) {
-    alertEl.innerHTML = '<div class="alert alert-danger"><span class="alert-icon">❌</span> Name, username, and password are required.</div>';
+  if (!name || !email || !password) {
+    alertEl.innerHTML = '<div class="alert alert-danger"><span class="alert-icon">❌</span> Name, email, and password are required.</div>';
     return;
   }
-  const res = await api('POST', '/api/users', { name, username, password, email, color, role_title: roleTitle });
+  const res = await api('POST', '/api/users', { name, email, password, color, role_title: roleTitle });
   if (res && res.id) {
     toast('Member added.', 'success');
     closeAddMemberModal();
@@ -481,11 +490,11 @@ async function saveNewMember() {
   }
 }
 
-async function confirmDeleteMember(userId, name) {
-  if (!confirm(`Delete "${name}"? This cannot be undone.`)) return;
-  const res = await api('DELETE', `/api/users/${userId}`);
+async function confirmDeleteMember(personId, name) {
+  if (!confirm(`Remove "${name}" from the group?`)) return;
+  const res = await api('DELETE', `/api/users/${personId}`);
   if (res && res.message) {
-    toast('Member deleted.', 'success');
+    toast('Member removed.', 'success');
     allGroupUsers = await api('GET', '/api/users') || [];
     renderGroupUsers(allGroupUsers);
   } else { toast(res?.error || 'Failed to delete.', 'danger'); }
@@ -493,13 +502,13 @@ async function confirmDeleteMember(userId, name) {
 
 let gmEditingId = null;
 
-function openGmModal(userId) {
-  const u = allGroupUsers.find(x => x.id === userId);
+function openGmModal(personId) {
+  const u = allGroupUsers.find(x => x.person_id === personId);
   if (!u) return;
-  gmEditingId = userId;
-  document.getElementById('gm-id').value = userId;
-  document.getElementById('gm-name').value = u.name;
-  document.getElementById('gm-email').value = u.email || '';
+  gmEditingId = personId;
+  document.getElementById('gm-id').value = personId;
+  document.getElementById('gm-name').value = u.person_name || u.name;
+  document.getElementById('gm-email').value = u.person_email || '';
   document.getElementById('gm-role-title').value = u.role_title || '';
   document.getElementById('gm-password').value = '';
   document.getElementById('gm-modal').classList.add('open');
@@ -515,7 +524,7 @@ async function saveGmUser() {
     password:   document.getElementById('gm-password').value || null,
   };
   if (!body.name) { toast('Name is required.', 'danger'); return; }
-  const res = await api('PUT', `/api/users/${gmEditingId}`, body);
+  const res = await api('PUT', `/api/users/${gmEditingId}`, body);  // gmEditingId is person_id
   if (res && res.id) {
     toast('User updated.', 'success');
     closeGmModal();
@@ -609,6 +618,7 @@ window.addEventListener('resize', () => {
 function logout() {
   sessionStorage.removeItem('lsa_token');
   sessionStorage.removeItem('lsa_user');
+  sessionStorage.removeItem('lsa_person');
   window.location.href = 'index.html';
 }
 

@@ -13,7 +13,7 @@ import jwt
 from flask import Flask, g, jsonify, request, send_from_directory
 from flask_cors import CORS
 
-from db import get_db_path, hash_password, init_db, migrate_db
+from db import get_db_path, hash_password, init_db, migrate_db, migrate_identity_split
 
 # ── App setup ─────────────────────────────────────────────────────────────────
 
@@ -41,9 +41,10 @@ def close_db(e=None):
 
 # ── Auth helpers ──────────────────────────────────────────────────────────────
 
-def make_token(user_id):
+def make_role_token(person_id, role_id):
     payload = {
-        'user_id': user_id,
+        'person_id': person_id,
+        'role_id':   role_id,
         'exp': datetime.now(tz=timezone.utc) + timedelta(days=7),
     }
     return jwt.encode(payload, SECRET_KEY, algorithm='HS256')
@@ -60,11 +61,51 @@ def require_auth(f):
             payload = jwt.decode(token, SECRET_KEY, algorithms=['HS256'])
         except jwt.PyJWTError:
             return jsonify({'error': 'Invalid or expired token'}), 401
-        user = get_db().execute('SELECT * FROM users WHERE id=?',
-                                (payload['user_id'],)).fetchone()
-        if not user:
-            return jsonify({'error': 'User not found'}), 401
-        g.user = dict(user)
+
+        db = get_db()
+
+        # Backward-compat: old tokens carry user_id (role id directly)
+        if 'user_id' in payload:
+            user = db.execute('SELECT * FROM users WHERE id=?',
+                              (payload['user_id'],)).fetchone()
+            if not user:
+                return jsonify({'error': 'User not found'}), 401
+            g.user   = dict(user)
+            g.person = None
+            return f(*args, **kwargs)
+
+        # New format: person_id + role_id
+        person = db.execute('SELECT * FROM persons WHERE id=?',
+                            (payload.get('person_id'),)).fetchone()
+        if not person:
+            return jsonify({'error': 'Person not found'}), 401
+
+        # Verify assignment is still active
+        assignment = db.execute(
+            'SELECT * FROM person_role_assignments '
+            'WHERE person_id=? AND role_id=? AND unassigned_at IS NULL',
+            (payload['person_id'], payload['role_id'])
+        ).fetchone()
+        if not assignment:
+            return jsonify({'error': 'Role assignment no longer active — please log in again'}), 401
+
+        role = db.execute('SELECT * FROM users WHERE id=?',
+                          (payload['role_id'],)).fetchone()
+        if not role:
+            return jsonify({'error': 'Role not found'}), 401
+
+        g.person = {k: person[k] for k in person.keys() if k != 'password_hash'}
+        g.user   = dict(role)
+        return f(*args, **kwargs)
+    return wrapper
+
+
+def require_role(f):
+    """Guard: ensures g.user (role) is populated after require_auth."""
+    @wraps(f)
+    def wrapper(*args, **kwargs):
+        if not g.get('user'):
+            return jsonify({'error': 'No role active'}), 403
         return f(*args, **kwargs)
     return wrapper
 
@@ -130,11 +171,18 @@ def _next_level(current: str) -> str | None:
 
 # ── Scope helpers ─────────────────────────────────────────────────────────────
 
-_USER_BASE = '''SELECT u.*, d.name AS district_name,
-                       g.code AS group_code, g.name AS group_name
+_USER_BASE = '''SELECT u.*,
+                       d.name AS district_name,
+                       g.code AS group_code, g.name AS group_name,
+                       p.id   AS person_id,
+                       p.name AS person_name,
+                       p.email AS person_email
                 FROM users u
                 LEFT JOIN districts d ON u.district_id = d.id
-                LEFT JOIN groups g    ON u.group_id    = g.id'''
+                LEFT JOIN groups g    ON u.group_id    = g.id
+                LEFT JOIN person_role_assignments pra
+                       ON u.id = pra.role_id AND pra.unassigned_at IS NULL
+                LEFT JOIN persons p ON pra.person_id = p.id'''
 
 
 def _pack_users(rows, editable: bool) -> list[dict]:
@@ -459,23 +507,35 @@ def serve_static(filename):
 
 @app.route('/api/auth/login', methods=['POST'])
 def login():
-    data = request.get_json() or {}
-    username = data.get('username', '').strip().lower()
+    data  = request.get_json() or {}
+    email = data.get('email', '').strip().lower()
     password = data.get('password', '')
 
-    if not username or not password:
-        return jsonify({'error': 'Username and password are required'}), 400
+    if not email or not password:
+        return jsonify({'error': 'Email and password are required'}), 400
 
     db = get_db()
-    user = db.execute('SELECT * FROM users WHERE username=?', (username,)).fetchone()
+    person = db.execute('SELECT * FROM persons WHERE email=?', (email,)).fetchone()
 
-    if not user or user['password_hash'] != hash_password(password):
-        return jsonify({'error': 'Invalid username or password'}), 401
+    if not person or person['password_hash'] != hash_password(password):
+        return jsonify({'error': 'Invalid email or password'}), 401
 
-    token = make_token(user['id'])
-    u = _enrich_user(dict(user), db)
-    u.pop('password_hash', None)
-    return jsonify({'token': token, 'user': u})
+    role_row = db.execute(
+        '''SELECT u.* FROM users u
+           JOIN person_role_assignments pra ON u.id = pra.role_id
+           WHERE pra.person_id = ? AND pra.unassigned_at IS NULL
+           LIMIT 1''',
+        (person['id'],)
+    ).fetchone()
+
+    if not role_row:
+        return jsonify({'error': 'No role assigned to your account — contact an administrator'}), 403
+
+    role = _enrich_user(dict(role_row), db)
+    role.pop('password_hash', None)
+    token = make_role_token(person['id'], role['id'])
+    p = {k: person[k] for k in person.keys() if k != 'password_hash'}
+    return jsonify({'token': token, 'user': role, 'person': p})
 
 
 @app.route('/api/auth/me')
@@ -484,7 +544,10 @@ def me():
     db = get_db()
     u = _enrich_user(dict(g.user), db)
     u.pop('password_hash', None)
-    return jsonify(u)
+    result = {'user': u}
+    if g.get('person'):
+        result['person'] = g.person
+    return jsonify(result)
 
 # ── STATS ─────────────────────────────────────────────────────────────────────
 
@@ -563,7 +626,7 @@ def create_user():
 
     # ── Group-leader path: can only add member-level users to their own group ──
     if is_group_lvl:
-        for field in ('name', 'username', 'password'):
+        for field in ('name', 'email', 'password'):
             if not data.get(field):
                 return jsonify({'error': f'{field} is required'}), 400
 
@@ -572,26 +635,42 @@ def create_user():
             return jsonify({'error': 'Color silo violation'}), 403
 
         db = get_db()
+        email = data['email'].strip().lower()
+
+        if db.execute('SELECT id FROM persons WHERE email=?', (email,)).fetchone():
+            return jsonify({'error': 'Email already in use'}), 409
+
         try:
+            # Create role slot
             db.execute(
                 '''INSERT INTO users
-                   (name,email,username,password_hash,dashboard,color,level,
-                    role_title,group_id,district_id,is_functional)
-                   VALUES (?,?,?,?,?,?,?,?,?,?,?)''',
-                (data['name'], data.get('email'), data['username'],
-                 hash_password(data['password']), 'member',
-                 new_color, 'member', data.get('role_title'),
-                 actor['group_id'], actor['district_id'], 0))
+                   (name,dashboard,color,level,role_title,group_id,district_id,is_functional)
+                   VALUES (?,?,?,?,?,?,?,?)''',
+                (data['name'], 'member', new_color, 'member',
+                 data.get('role_title'), actor['group_id'], actor['district_id'], 0))
+            role_id = db.execute('SELECT last_insert_rowid()').fetchone()[0]
+
+            # Create person account
+            db.execute(
+                'INSERT INTO persons (name, email, password_hash) VALUES (?,?,?)',
+                (data['name'], email, hash_password(data['password'])))
+            person_id = db.execute('SELECT last_insert_rowid()').fetchone()[0]
+
+            # Link person → role
+            db.execute(
+                'INSERT INTO person_role_assignments (person_id, role_id) VALUES (?,?)',
+                (person_id, role_id))
             db.commit()
-            new_id = db.execute('SELECT last_insert_rowid()').fetchone()[0]
-            u = dict(db.execute('SELECT * FROM users WHERE id=?', (new_id,)).fetchone())
-            u.pop('password_hash')
+
+            u = dict(db.execute(_USER_BASE + ' WHERE u.id=?', (role_id,)).fetchone())
+            u.pop('password_hash', None)
             return jsonify(u), 201
         except sqlite3.IntegrityError as exc:
+            db.rollback()
             return jsonify({'error': str(exc)}), 409
 
     # ── Admin path ────────────────────────────────────────────────────────────
-    for field in ('name', 'username', 'password', 'dashboard', 'level'):
+    for field in ('name', 'email', 'password', 'dashboard', 'level'):
         if not data.get(field):
             return jsonify({'error': f'{field} is required'}), 400
 
@@ -609,89 +688,191 @@ def create_user():
         return jsonify({'error': 'Color silo violation'}), 403
 
     db = get_db()
+    email = data['email'].strip().lower()
+
+    if db.execute('SELECT id FROM persons WHERE email=?', (email,)).fetchone():
+        return jsonify({'error': 'Email already in use'}), 409
+
     try:
+        # Create role slot
         db.execute(
             '''INSERT INTO users
-               (name,email,username,password_hash,dashboard,color,level,
-                role_title,group_id,district_id,is_functional)
-               VALUES (?,?,?,?,?,?,?,?,?,?,?)''',
-            (data['name'], data.get('email'), data['username'],
-             hash_password(data['password']), data['dashboard'],
-             new_color or None, target_level, data.get('role_title'),
-             data.get('group_id'), data.get('district_id'),
+               (name,dashboard,color,level,role_title,group_id,district_id,is_functional)
+               VALUES (?,?,?,?,?,?,?,?)''',
+            (data['name'], data['dashboard'], new_color or None, target_level,
+             data.get('role_title'), data.get('group_id'), data.get('district_id'),
              int(data.get('is_functional', 0))))
+        role_id = db.execute('SELECT last_insert_rowid()').fetchone()[0]
+
+        # Create person account
+        db.execute(
+            'INSERT INTO persons (name, email, password_hash) VALUES (?,?,?)',
+            (data['name'], email, hash_password(data['password'])))
+        person_id = db.execute('SELECT last_insert_rowid()').fetchone()[0]
+
+        # Link person → role
+        db.execute(
+            'INSERT INTO person_role_assignments (person_id, role_id) VALUES (?,?)',
+            (person_id, role_id))
         db.commit()
-        new_id = db.execute('SELECT last_insert_rowid()').fetchone()[0]
-        u = dict(db.execute('SELECT * FROM users WHERE id=?', (new_id,)).fetchone())
-        u.pop('password_hash')
+
+        u = dict(db.execute(_USER_BASE + ' WHERE u.id=?', (role_id,)).fetchone())
+        u.pop('password_hash', None)
         return jsonify(u), 201
     except sqlite3.IntegrityError as exc:
+        db.rollback()
         return jsonify({'error': str(exc)}), 409
 
 
-@app.route('/api/users/<int:user_id>', methods=['PUT'])
+@app.route('/api/persons', methods=['POST'])
 @require_auth
-def update_user(user_id):
+def create_person():
+    """Create a person account and optionally assign to an existing role slot."""
+    actor = g.user
+    if actor['dashboard'] != 'admin':
+        return jsonify({'error': 'Forbidden'}), 403
+
+    data = request.get_json() or {}
+    for field in ('name', 'email', 'password'):
+        if not data.get(field):
+            return jsonify({'error': f'{field} is required'}), 400
+
+    email = data['email'].strip().lower()
+    db = get_db()
+
+    if db.execute('SELECT id FROM persons WHERE email=?', (email,)).fetchone():
+        return jsonify({'error': 'Email already in use'}), 409
+
+    role_id = data.get('role_id') or None
+    if role_id:
+        role_id = int(role_id)
+        in_scope = _users_in_scope(actor, db)
+        if not any(u['id'] == role_id and u.get('editable') for u in in_scope):
+            return jsonify({'error': 'Role not found or not editable'}), 403
+
+    try:
+        db.execute(
+            'INSERT INTO persons (name, email, password_hash) VALUES (?,?,?)',
+            (data['name'], email, hash_password(data['password'])))
+        person_id = db.execute('SELECT last_insert_rowid()').fetchone()[0]
+
+        if role_id:
+            db.execute(
+                'INSERT INTO person_role_assignments (person_id, role_id) VALUES (?,?)',
+                (person_id, role_id))
+
+        db.commit()
+
+        person = dict(db.execute(
+            'SELECT id, name, email, created_at FROM persons WHERE id=?', (person_id,)).fetchone())
+
+        if role_id:
+            row = db.execute(_USER_BASE + ' WHERE u.id=?', (role_id,)).fetchone()
+            role = dict(row); role.pop('password_hash', None)
+            return jsonify({'person': person, 'role': role, 'person_id': person_id}), 201
+
+        return jsonify({'person': person, 'person_id': person_id}), 201
+    except sqlite3.IntegrityError as exc:
+        db.rollback()
+        return jsonify({'error': str(exc)}), 409
+
+
+@app.route('/api/users/<int:person_id>', methods=['PUT'])
+@require_auth
+def update_user(person_id):
     actor = g.user
     if actor['dashboard'] != 'admin' and not _is_any_group_leader(actor):
         return jsonify({'error': 'Forbidden'}), 403
 
     db = get_db()
-    target = db.execute('SELECT * FROM users WHERE id=?', (user_id,)).fetchone()
-    if not target:
-        return jsonify({'error': 'User not found'}), 404
-    target = dict(target)
 
-    # Use _users_in_scope to check permission (editable flag)
+    # Find person's current active role and check scope permission
+    assignment = db.execute(
+        'SELECT * FROM person_role_assignments WHERE person_id=? AND unassigned_at IS NULL',
+        (person_id,)
+    ).fetchone()
+    if not assignment:
+        return jsonify({'error': 'Person not found or has no active role'}), 404
+
+    role_id = assignment['role_id']
     in_scope = _users_in_scope(actor, db)
-    entry = next((u for u in in_scope if u['id'] == user_id), None)
+    entry = next((u for u in in_scope if u['id'] == role_id), None)
     if not entry or not entry.get('editable'):
         return jsonify({'error': 'Forbidden'}), 403
 
     data = request.get_json() or {}
-    updates = {k: data[k] for k in ('name', 'email', 'role_title', 'group_id', 'district_id')
-               if k in data}
-    if data.get('password'):
-        updates['password_hash'] = hash_password(data['password'])
 
-    if not updates:
+    # Personal info → persons table
+    person_updates = {k: data[k] for k in ('name', 'email') if k in data}
+    if data.get('email'):
+        person_updates['email'] = data['email'].strip().lower()
+    if data.get('password'):
+        person_updates['password_hash'] = hash_password(data['password'])
+
+    # Role-slot fields → users table (only for member-level personal slots)
+    role = dict(db.execute('SELECT * FROM users WHERE id=?', (role_id,)).fetchone())
+    role_updates = {}
+    if role['level'] == 'member':
+        role_updates = {k: data[k] for k in ('role_title', 'color', 'group_id')
+                        if k in data}
+
+    if not person_updates and not role_updates:
         return jsonify({'error': 'No updates provided'}), 400
 
-    set_clause = ', '.join(f'{k}=?' for k in updates)
-    db.execute(f'UPDATE users SET {set_clause} WHERE id=?',
-               list(updates.values()) + [user_id])
-    db.commit()
+    try:
+        if person_updates:
+            set_p = ', '.join(f'{k}=?' for k in person_updates)
+            db.execute(f'UPDATE persons SET {set_p} WHERE id=?',
+                       list(person_updates.values()) + [person_id])
+        if role_updates:
+            set_r = ', '.join(f'{k}=?' for k in role_updates)
+            db.execute(f'UPDATE users SET {set_r} WHERE id=?',
+                       list(role_updates.values()) + [role_id])
+        db.commit()
+    except sqlite3.IntegrityError:
+        db.rollback()
+        return jsonify({'error': 'Email already in use'}), 409
 
-    u = dict(db.execute('SELECT * FROM users WHERE id=?', (user_id,)).fetchone())
-    u.pop('password_hash')
+    row = db.execute(_USER_BASE + ' WHERE u.id=? AND p.id=?', (role_id, person_id)).fetchone()
+    u = dict(row)
+    u.pop('password_hash', None)
     return jsonify(u)
 
 
-@app.route('/api/users/<int:user_id>', methods=['DELETE'])
+@app.route('/api/users/<int:person_id>', methods=['DELETE'])
 @require_auth
-def delete_user(user_id):
+def delete_user(person_id):
     actor = g.user
     if not _is_any_group_leader(actor):
         return jsonify({'error': 'Forbidden'}), 403
 
     db = get_db()
-    target = db.execute('SELECT * FROM users WHERE id=?', (user_id,)).fetchone()
-    if not target:
-        return jsonify({'error': 'User not found'}), 404
-    target = dict(target)
+    assignment = db.execute(
+        'SELECT * FROM person_role_assignments WHERE person_id=? AND unassigned_at IS NULL',
+        (person_id,)
+    ).fetchone()
+    if not assignment:
+        return jsonify({'error': 'Person not found or has no active role'}), 404
 
-    # Only members in the leader's own group may be deleted
-    if target['level'] != 'member':
-        return jsonify({'error': 'Only member-level users can be deleted'}), 403
-    if target['group_id'] != actor['group_id']:
+    role = db.execute('SELECT * FROM users WHERE id=?', (assignment['role_id'],)).fetchone()
+    if not role:
+        return jsonify({'error': 'Role not found'}), 404
+    role = dict(role)
+
+    if role['level'] != 'member':
+        return jsonify({'error': 'Only member-level users can be removed this way'}), 403
+    if role['group_id'] != actor['group_id']:
         return jsonify({'error': 'Forbidden'}), 403
-    # Colored leaders may only delete same-color members
-    if actor['color'] and target['color'] != actor['color']:
+    if actor['color'] and role['color'] != actor['color']:
         return jsonify({'error': 'Color silo violation'}), 403
 
-    db.execute('DELETE FROM users WHERE id=?', (user_id,))
+    db.execute(
+        'UPDATE person_role_assignments SET unassigned_at=CURRENT_TIMESTAMP '
+        'WHERE person_id=? AND unassigned_at IS NULL',
+        (person_id,)
+    )
     db.commit()
-    return jsonify({'message': 'User deleted'})
+    return jsonify({'message': 'Member removed'})
 
 
 @app.route('/api/groups')
@@ -788,19 +969,21 @@ def approve_event(event_id):
     note = (request.get_json() or {}).get('note', '')
     now  = datetime.utcnow().isoformat()
 
+    actor_person_id = g.person['id'] if g.get('person') else None
+
     if evt['current_level'] == evt['required_approval_level']:
         db.execute('UPDATE event_requests SET status=?,updated_at=? WHERE id=?',
                    ('approved', now, event_id))
         db.execute(
-            'INSERT INTO event_request_history (request_id,action,actor_id,note) VALUES (?,?,?,?)',
-            (event_id, 'approved', actor['id'], note))
+            'INSERT INTO event_request_history (request_id,action,actor_id,actor_person_id,note) VALUES (?,?,?,?,?)',
+            (event_id, 'approved', actor['id'], actor_person_id, note))
     else:
         nxt = _next_level(evt['current_level'])
         db.execute('UPDATE event_requests SET current_level=?,updated_at=? WHERE id=?',
                    (nxt, now, event_id))
         db.execute(
-            'INSERT INTO event_request_history (request_id,action,actor_id,note) VALUES (?,?,?,?)',
-            (event_id, f'forwarded_to_{nxt}', actor['id'], note))
+            'INSERT INTO event_request_history (request_id,action,actor_id,actor_person_id,note) VALUES (?,?,?,?,?)',
+            (event_id, f'forwarded_to_{nxt}', actor['id'], actor_person_id, note))
 
     db.commit()
     return jsonify(dict(db.execute('SELECT * FROM event_requests WHERE id=?',
@@ -830,11 +1013,12 @@ def reject_event(event_id):
 
     note = (request.get_json() or {}).get('note', '')
     now  = datetime.utcnow().isoformat()
+    actor_person_id = g.person['id'] if g.get('person') else None
     db.execute('UPDATE event_requests SET status=?,updated_at=? WHERE id=?',
                ('rejected', now, event_id))
     db.execute(
-        'INSERT INTO event_request_history (request_id,action,actor_id,note) VALUES (?,?,?,?)',
-        (event_id, 'rejected', actor['id'], note))
+        'INSERT INTO event_request_history (request_id,action,actor_id,actor_person_id,note) VALUES (?,?,?,?,?)',
+        (event_id, 'rejected', actor['id'], actor_person_id, note))
     db.commit()
     return jsonify(dict(db.execute('SELECT * FROM event_requests WHERE id=?',
                                    (event_id,)).fetchone()))
@@ -949,20 +1133,21 @@ def approve_report(report_id):
 
     note = (request.get_json() or {}).get('note', '')
     now  = datetime.utcnow().isoformat()
+    actor_person_id = g.person['id'] if g.get('person') else None
 
     if report['current_level'] == report['required_approval_level']:
         db.execute('UPDATE reports SET status=?,updated_at=? WHERE id=?',
                    ('approved', now, report_id))
         db.execute(
-            'INSERT INTO report_history (report_id,action,actor_id,note) VALUES (?,?,?,?)',
-            (report_id, 'approved', actor['id'], note))
+            'INSERT INTO report_history (report_id,action,actor_id,actor_person_id,note) VALUES (?,?,?,?,?)',
+            (report_id, 'approved', actor['id'], actor_person_id, note))
     else:
         nxt = _next_level(report['current_level'])
         db.execute('UPDATE reports SET current_level=?,updated_at=? WHERE id=?',
                    (nxt, now, report_id))
         db.execute(
-            'INSERT INTO report_history (report_id,action,actor_id,forwarded_to_level,note) VALUES (?,?,?,?,?)',
-            (report_id, f'forwarded_to_{nxt}', actor['id'], nxt, note))
+            'INSERT INTO report_history (report_id,action,actor_id,actor_person_id,forwarded_to_level,note) VALUES (?,?,?,?,?,?)',
+            (report_id, f'forwarded_to_{nxt}', actor['id'], actor_person_id, nxt, note))
 
     db.commit()
     updated = dict(db.execute('SELECT * FROM reports WHERE id=?', (report_id,)).fetchone())
@@ -988,11 +1173,12 @@ def reject_report(report_id):
 
     note = (request.get_json() or {}).get('note', '')
     now  = datetime.utcnow().isoformat()
+    actor_person_id = g.person['id'] if g.get('person') else None
     db.execute('UPDATE reports SET status=?,updated_at=? WHERE id=?',
                ('rejected', now, report_id))
     db.execute(
-        'INSERT INTO report_history (report_id,action,actor_id,note) VALUES (?,?,?,?)',
-        (report_id, 'rejected', actor['id'], note))
+        'INSERT INTO report_history (report_id,action,actor_id,actor_person_id,note) VALUES (?,?,?,?,?)',
+        (report_id, 'rejected', actor['id'], actor_person_id, note))
     db.commit()
     return jsonify({'message': 'Report rejected'})
 
@@ -1045,28 +1231,130 @@ def reports_inbox_history():
 @app.route('/api/profile', methods=['PUT'])
 @require_auth
 def update_profile():
-    actor = g.user
-    data  = request.get_json() or {}
-    db    = get_db()
-    updates = {k: data[k] for k in ('name', 'email') if k in data}
+    db   = get_db()
+    data = request.get_json() or {}
+
+    # Resolve person_id: from g.person (new tokens) or via role assignment (old tokens)
+    if g.get('person'):
+        person_id = g.person['id']
+    else:
+        row = db.execute(
+            'SELECT person_id FROM person_role_assignments WHERE role_id=? AND unassigned_at IS NULL',
+            (g.user['id'],)
+        ).fetchone()
+        if not row:
+            return jsonify({'error': 'Person account not found'}), 404
+        person_id = row['person_id']
+
+    updates = {}
+    if data.get('name'):
+        updates['name'] = data['name']
+    if data.get('email'):
+        updates['email'] = data['email'].strip().lower()
 
     if data.get('current_password') and data.get('new_password'):
-        user = db.execute('SELECT password_hash FROM users WHERE id=?',
-                          (actor['id'],)).fetchone()
-        if user['password_hash'] != hash_password(data['current_password']):
+        person = db.execute('SELECT password_hash FROM persons WHERE id=?',
+                            (person_id,)).fetchone()
+        if person['password_hash'] != hash_password(data['current_password']):
             return jsonify({'error': 'Incorrect current password'}), 400
         updates['password_hash'] = hash_password(data['new_password'])
 
     if not updates:
         return jsonify({'error': 'No updates provided'}), 400
 
-    set_clause = ', '.join(f'{k}=?' for k in updates)
-    db.execute(f'UPDATE users SET {set_clause} WHERE id=?',
-               list(updates.values()) + [actor['id']])
+    try:
+        set_clause = ', '.join(f'{k}=?' for k in updates)
+        db.execute(f'UPDATE persons SET {set_clause} WHERE id=?',
+                   list(updates.values()) + [person_id])
+        db.commit()
+    except sqlite3.IntegrityError:
+        return jsonify({'error': 'Email already in use'}), 409
+
+    p = dict(db.execute('SELECT * FROM persons WHERE id=?', (person_id,)).fetchone())
+    p.pop('password_hash')
+    return jsonify(p)
+
+# ── ADMIN ROLE ASSIGNMENTS ────────────────────────────────────────────────────
+
+@app.route('/api/admin/roles/<int:role_id>/assign', methods=['POST'])
+@require_auth
+def assign_person_to_role(role_id):
+    """Add an existing or new person to an existing role slot (co-holders allowed)."""
+    actor = g.user
+    db = get_db()
+
+    role = db.execute('SELECT * FROM users WHERE id=?', (role_id,)).fetchone()
+    if not role:
+        return jsonify({'error': 'Role not found'}), 404
+
+    # Check actor can edit this role
+    in_scope = _users_in_scope(actor, db)
+    if not any(u['id'] == role_id and u.get('editable') for u in in_scope):
+        return jsonify({'error': 'Forbidden'}), 403
+
+    data = request.get_json() or {}
+    email = (data.get('email') or '').strip().lower()
+    if not email:
+        return jsonify({'error': 'email is required'}), 400
+
+    existing_person = db.execute('SELECT * FROM persons WHERE email=?', (email,)).fetchone()
+
+    try:
+        if existing_person:
+            person_id = existing_person['id']
+            # Close person's current active role (move them)
+            db.execute(
+                'UPDATE person_role_assignments SET unassigned_at=CURRENT_TIMESTAMP '
+                'WHERE person_id=? AND unassigned_at IS NULL',
+                (person_id,)
+            )
+        else:
+            if not data.get('name') or not data.get('password'):
+                return jsonify({'error': 'name and password are required for a new person'}), 400
+            db.execute(
+                'INSERT INTO persons (name, email, password_hash) VALUES (?,?,?)',
+                (data['name'], email, hash_password(data['password'])))
+            person_id = db.execute('SELECT last_insert_rowid()').fetchone()[0]
+
+        db.execute(
+            'INSERT INTO person_role_assignments (person_id, role_id) VALUES (?,?)',
+            (person_id, role_id))
+        db.commit()
+    except sqlite3.IntegrityError:
+        db.rollback()
+        return jsonify({'error': 'This person already has an active role'}), 409
+
+    row = db.execute(_USER_BASE + ' WHERE u.id=? AND p.id=?', (role_id, person_id)).fetchone()
+    u = dict(row)
+    u.pop('password_hash', None)
+    return jsonify(u), 201
+
+
+@app.route('/api/admin/roles/<int:role_id>/persons/<int:person_id>', methods=['DELETE'])
+@require_auth
+def remove_person_from_role(role_id, person_id):
+    """Remove one person from a role without affecting co-holders."""
+    actor = g.user
+    db = get_db()
+
+    role = db.execute('SELECT * FROM users WHERE id=?', (role_id,)).fetchone()
+    if not role:
+        return jsonify({'error': 'Role not found'}), 404
+
+    in_scope = _users_in_scope(actor, db)
+    if not any(u['id'] == role_id and u.get('editable') for u in in_scope):
+        return jsonify({'error': 'Forbidden'}), 403
+
+    result = db.execute(
+        'UPDATE person_role_assignments SET unassigned_at=CURRENT_TIMESTAMP '
+        'WHERE person_id=? AND role_id=? AND unassigned_at IS NULL',
+        (person_id, role_id)
+    )
+    if result.rowcount == 0:
+        return jsonify({'error': 'Assignment not found'}), 404
     db.commit()
-    u = dict(db.execute('SELECT * FROM users WHERE id=?', (actor['id'],)).fetchone())
-    u.pop('password_hash')
-    return jsonify(u)
+    return jsonify({'message': 'Person removed from role'})
+
 
 # ── Debug ─────────────────────────────────────────────────────────────────────
 
@@ -1084,4 +1372,5 @@ def debug_viewport():
 if __name__ == '__main__':
     init_db()
     migrate_db()
+    migrate_identity_split()
     app.run(debug=True, port=5000)

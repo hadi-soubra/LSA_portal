@@ -31,9 +31,9 @@
 
 <!-- User Modal (Add / Edit) -->
 <div class="modal-overlay" id="user-modal">
-  <div class="modal">
+  <div class="modal" style="max-width:440px;">
     <div class="modal-header">
-      <span class="modal-title" id="user-modal-title">Add User</span>
+      <span class="modal-title" id="user-modal-title">Add Person</span>
       <button class="modal-close" onclick="closeUserModal()">✕</button>
     </div>
     <div class="modal-body">
@@ -44,59 +44,15 @@
           <input class="form-control" type="text" id="um-name" placeholder="Full name" />
         </div>
         <div>
-          <label class="form-label">Username *</label>
-          <input class="form-control" type="text" id="um-username" placeholder="username" />
+          <label class="form-label">Email *</label>
+          <input class="form-control" type="email" id="um-email" placeholder="user@email.com" />
         </div>
       </div>
-      <div class="form-group">
-        <label class="form-label">Email</label>
-        <input class="form-control" type="email" id="um-email" placeholder="user@lsa.org.lb" />
-      </div>
-      <div class="form-row">
-        <div>
-          <label class="form-label">Dashboard *</label>
-          <select class="form-control" id="um-dashboard">
-            <option value="member">Member</option>
-            <option value="leader">Leader</option>
-          </select>
-        </div>
-        <div>
-          <label class="form-label">Level *</label>
-          <select class="form-control" id="um-level">
-            <option value="member">Member</option>
-            <option value="group">Group Leader</option>
-          </select>
-        </div>
-      </div>
-      <div class="form-row">
-        <div>
-          <label class="form-label">Color Branch</label>
-          <select class="form-control" id="um-color">
-            <option value="">None (functional)</option>
-            <option value="pink">Pink</option>
-            <option value="yellow">Yellow</option>
-            <option value="green">Green</option>
-            <option value="red">Red</option>
-          </select>
-        </div>
-        <div>
-          <label class="form-label">Role Title</label>
-          <input class="form-control" type="text" id="um-role-title" placeholder="e.g., قائد فرقة" />
-        </div>
-      </div>
-      <div class="form-row" id="um-group-row">
-        <div>
-          <label class="form-label">Group</label>
-          <select class="form-control" id="um-group">
-            <option value="">— Select group —</option>
-          </select>
-        </div>
-        <div>
-          <label class="form-label">District</label>
-          <select class="form-control" id="um-district" disabled>
-            <option value="">— Auto-assigned —</option>
-          </select>
-        </div>
+      <div class="form-group" id="um-role-group">
+        <label class="form-label">Assign to Role <span class="text-muted" style="font-weight:400;">(optional)</span></label>
+        <select class="form-control" id="um-role-id">
+          <option value="">— No role assigned yet —</option>
+        </select>
       </div>
       <div class="form-group">
         <label class="form-label" id="um-pw-label">Password *</label>
@@ -106,7 +62,7 @@
     </div>
     <div class="modal-footer">
       <button class="btn btn-secondary" onclick="closeUserModal()">Cancel</button>
-      <button class="btn btn-primary" onclick="saveUser()">💾 Save User</button>
+      <button class="btn btn-primary" onclick="saveUser()">💾 Save</button>
     </div>
   </div>
 </div>
@@ -211,10 +167,13 @@
       <!-- ===== USERS ===== -->
       <div class="section" id="sec-users">
 
-        <div class="input-group" style="margin-bottom:1rem;">
-          <input class="form-control" type="text" placeholder="Search by name or username…"
-                 id="user-search" oninput="filterUsers()" />
-          <button class="btn btn-primary">🔍</button>
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem;gap:0.75rem;flex-wrap:wrap;">
+          <div class="input-group" style="flex:1;min-width:200px;">
+            <input class="form-control" type="text" placeholder="Search by name or email…"
+                   id="user-search" oninput="filterUsers()" />
+            <button class="btn btn-primary">🔍</button>
+          </div>
+          <button class="btn btn-primary" onclick="openAddUserModal()">+ Add User</button>
         </div>
 
         <div class="card">
@@ -222,8 +181,7 @@
             <table id="users-table">
               <thead>
                 <tr>
-                  <th>Name</th>
-                  <th>Username</th>
+                  <th>Person</th>
                   <th>Level</th>
                   <th>Color</th>
                   <th>Role</th>
@@ -233,7 +191,7 @@
                 </tr>
               </thead>
               <tbody id="users-tbody">
-                <tr><td colspan="8" class="text-muted text-sm" style="padding:1rem;">Loading…</td></tr>
+                <tr><td colspan="7" class="text-muted text-sm" style="padding:1rem;">Loading…</td></tr>
               </tbody>
             </table>
           </div>

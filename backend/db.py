@@ -61,12 +61,13 @@ CREATE TABLE IF NOT EXISTS event_requests (
 );
 
 CREATE TABLE IF NOT EXISTS event_request_history (
-    id         INTEGER PRIMARY KEY AUTOINCREMENT,
-    request_id INTEGER NOT NULL REFERENCES event_requests(id),
-    action     TEXT NOT NULL,
-    actor_id   INTEGER NOT NULL REFERENCES users(id),
-    note       TEXT,
-    acted_at   DATETIME DEFAULT CURRENT_TIMESTAMP
+    id              INTEGER PRIMARY KEY AUTOINCREMENT,
+    request_id      INTEGER NOT NULL REFERENCES event_requests(id),
+    action          TEXT NOT NULL,
+    actor_id        INTEGER NOT NULL REFERENCES users(id),
+    actor_person_id INTEGER REFERENCES persons(id),
+    note            TEXT,
+    acted_at        DATETIME DEFAULT CURRENT_TIMESTAMP
 );
 
 CREATE TABLE IF NOT EXISTS content (
@@ -100,10 +101,31 @@ CREATE TABLE IF NOT EXISTS report_history (
     report_id         INTEGER NOT NULL REFERENCES reports(id),
     action            TEXT NOT NULL,
     actor_id          INTEGER NOT NULL REFERENCES users(id),
+    actor_person_id   INTEGER REFERENCES persons(id),
     forwarded_to_level TEXT,
     note              TEXT,
     acted_at          DATETIME DEFAULT CURRENT_TIMESTAMP
 );
+
+CREATE TABLE IF NOT EXISTS persons (
+    id            INTEGER PRIMARY KEY AUTOINCREMENT,
+    name          TEXT NOT NULL,
+    email         TEXT NOT NULL UNIQUE,
+    password_hash TEXT NOT NULL,
+    created_at    DATETIME DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS person_role_assignments (
+    id            INTEGER PRIMARY KEY AUTOINCREMENT,
+    person_id     INTEGER NOT NULL REFERENCES persons(id),
+    role_id       INTEGER NOT NULL REFERENCES users(id),
+    assigned_at   DATETIME DEFAULT CURRENT_TIMESTAMP,
+    unassigned_at DATETIME DEFAULT NULL
+);
+
+CREATE UNIQUE INDEX IF NOT EXISTS ux_person_one_active_role
+    ON person_role_assignments(person_id)
+    WHERE unassigned_at IS NULL;
 """
 
 # ── Seed data constants ────────────────────────────────────────────────────────
@@ -301,6 +323,64 @@ def migrate_db():
     conn.close()
 
 
+def _column_exists(conn, table, column):
+    cols = [row[1] for row in conn.execute(f'PRAGMA table_info({table})').fetchall()]
+    return column in cols
+
+
+def migrate_identity_split():
+    """
+    One-time migration: for each existing users row create a persons row
+    (using username@lsa.lb as placeholder email) and an active
+    person_role_assignments row.  Safe to call multiple times.
+    """
+    conn = sqlite3.connect(DB_PATH)
+    conn.row_factory = sqlite3.Row
+    conn.execute('PRAGMA foreign_keys = ON')
+
+    # Add actor_person_id to history tables if missing (older DBs)
+    for table in ('event_request_history', 'report_history'):
+        if not _column_exists(conn, table, 'actor_person_id'):
+            conn.execute(
+                f'ALTER TABLE {table} ADD COLUMN '
+                f'actor_person_id INTEGER REFERENCES persons(id)'
+            )
+
+    users = conn.execute('SELECT id, name, username, password_hash FROM users').fetchall()
+    created = 0
+    for u in users:
+        email = f"{u['username']}@lsa.lb"
+
+        existing = conn.execute(
+            'SELECT id FROM persons WHERE email=?', (email,)
+        ).fetchone()
+        if existing:
+            person_id = existing['id']
+        else:
+            conn.execute(
+                'INSERT INTO persons (name, email, password_hash) VALUES (?,?,?)',
+                (u['name'], email, u['password_hash'])
+            )
+            person_id = conn.execute('SELECT last_insert_rowid()').fetchone()[0]
+            created += 1
+
+        already = conn.execute(
+            'SELECT id FROM person_role_assignments '
+            'WHERE person_id=? AND role_id=? AND unassigned_at IS NULL',
+            (person_id, u['id'])
+        ).fetchone()
+        if not already:
+            conn.execute(
+                'INSERT INTO person_role_assignments (person_id, role_id) VALUES (?,?)',
+                (person_id, u['id'])
+            )
+
+    conn.commit()
+    conn.close()
+    print(f'Identity split migration: {created} person accounts created.')
+
+
 if __name__ == '__main__':
     init_db()
     migrate_db()
+    migrate_identity_split()

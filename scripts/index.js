@@ -12,7 +12,7 @@ async function handleLogin(e) {
   e.preventDefault();
   const btn = document.getElementById('login-btn');
   const err = document.getElementById('login-error');
-  const username = document.getElementById('username').value.trim().toLowerCase();
+  const email    = document.getElementById('email').value.trim().toLowerCase();
   const password = document.getElementById('password').value;
 
   err.classList.remove('show');
@@ -22,20 +22,21 @@ async function handleLogin(e) {
     const res = await fetch('/api/auth/login', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ username, password }),
+      body: JSON.stringify({ email, password }),
     });
     const data = await res.json();
 
     if (!res.ok) {
       btn.classList.remove('loading');
       document.getElementById('login-error-msg').textContent =
-        data.error || 'Invalid username or password.';
+        data.error || 'Invalid email or password.';
       err.classList.add('show');
       return;
     }
 
     sessionStorage.setItem('lsa_token', data.token);
     sessionStorage.setItem('lsa_user', JSON.stringify(data.user));
+    if (data.person) sessionStorage.setItem('lsa_person', JSON.stringify(data.person));
     window.location.href = getDashboardPage(data.user);
   } catch (ex) {
     btn.classList.remove('loading');
@@ -170,19 +171,22 @@ function switchCredsTab(tab) {
 
 function renderCredsContent() {
   const el = document.getElementById('creds-content');
-  el.innerHTML = CREDS[activeCredsTab].map(([u, label]) => `
-    <div onclick="fillCred('${u}')"
+  el.innerHTML = CREDS[activeCredsTab].map(([u, label]) => {
+    const email = `${u}@lsa.lb`;
+    return `
+    <div onclick="fillCred('${email}')"
          style="display:flex;justify-content:space-between;align-items:center;
                 padding:0.3rem 0.4rem;border-radius:4px;cursor:pointer;gap:1rem;"
          onmouseover="this.style.background='var(--primary-bg)'"
          onmouseout="this.style.background=''">
       <span style="color:var(--text-muted);font-size:0.77rem;">${label}</span>
-      <code style="font-size:0.78rem;white-space:nowrap;">${u}</code>
-    </div>`).join('');
+      <code style="font-size:0.78rem;white-space:nowrap;">${email}</code>
+    </div>`;
+  }).join('');
 }
 
-function fillCred(username) {
-  document.getElementById('username').value = username;
+function fillCred(email) {
+  document.getElementById('email').value = email;
   document.getElementById('password').value = '123';
   toggleCreds();
 }

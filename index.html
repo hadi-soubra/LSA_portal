@@ -49,7 +49,7 @@
           </button>
           <div id="creds-panel" style="display:none;padding:0 1rem 1rem;">
             <div style="font-size:0.8rem;color:var(--text-muted);margin-bottom:0.75rem;">
-              All accounts use password <code style="font-size:0.85rem;">123</code> — click any username to fill the form
+              All accounts use password <code style="font-size:0.85rem;">123</code> — click any email to fill the form
             </div>
             <div id="creds-tabs" style="display:flex;gap:0.25rem;flex-wrap:wrap;margin-bottom:0.75rem;"></div>
             <div id="creds-content" style="max-height:260px;overflow-y:auto;font-size:0.8rem;"></div>
@@ -63,10 +63,10 @@
 
         <form id="login-form" onsubmit="handleLogin(event)">
           <div class="form-group">
-            <label class="form-label" for="username">Username</label>
+            <label class="form-label" for="email">Email</label>
             <input
-              class="form-control" type="text" id="username"
-              placeholder="Enter your username" autocomplete="username"
+              class="form-control" type="email" id="email"
+              placeholder="Enter your email" autocomplete="email"
               required
             />
           </div>

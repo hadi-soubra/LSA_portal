@@ -1,6 +1,7 @@
 // ── Auth guard ──────────────────────────────────────────────────────────────
 const lsaToken = sessionStorage.getItem('lsa_token');
 const userData = JSON.parse(sessionStorage.getItem('lsa_user') || 'null');
+const personData = JSON.parse(sessionStorage.getItem('lsa_person') || 'null');
 if (!lsaToken || !userData || userData.dashboard !== 'member') {
   window.location.href = 'index.html';
 }
@@ -19,27 +20,29 @@ async function api(method, path, body) {
 
 // ── Page init ────────────────────────────────────────────────────────────────
 (async function init() {
-  // Set user info from session
-  if (userData) {
-    const initials = userData.name.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase();
+  const displayName = personData?.name || userData?.name || '';
+  const displayEmail = personData?.email || '';
+  if (displayName) {
+    const initials = displayName.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase();
     document.getElementById('user-avatar').textContent = initials;
-    document.getElementById('user-name').textContent = userData.name;
-    document.getElementById('section-subtitle').textContent = `Welcome back, ${userData.name.split(' ')[0]}!`;
+    document.getElementById('user-name').textContent = displayName;
+    document.getElementById('section-subtitle').textContent = `Welcome back, ${displayName.split(' ')[0]}!`;
     // Profile section
     document.getElementById('profile-avatar-big').textContent = initials;
-    document.getElementById('profile-name-display').textContent = userData.name;
-    const colorLabel = userData.color ? ` · ${userData.color.charAt(0).toUpperCase() + userData.color.slice(1)} Branch` : '';
+    document.getElementById('profile-name-display').textContent = displayName;
+    const colorLabel = userData?.color ? ` · ${userData.color.charAt(0).toUpperCase() + userData.color.slice(1)} Branch` : '';
     document.getElementById('profile-meta-display').textContent =
-      `Member${userData.group_code ? ' · ' + userData.group_code : ''}${colorLabel}`;
-    document.getElementById('p-name').value = userData.name;
-    document.getElementById('p-email').value = userData.email || '';
-    document.getElementById('p-branch').value = userData.color
+      `Member${userData?.group_code ? ' · ' + userData.group_code : ''}${colorLabel}`;
+    document.getElementById('p-name').value = displayName;
+    document.getElementById('p-email').value = displayEmail;
+    document.getElementById('p-branch').value = userData?.color
       ? userData.color.charAt(0).toUpperCase() + userData.color.slice(1) + ' Branch' : '—';
     document.getElementById('p-group').value =
-      (userData.group_name || '') + (userData.group_code ? ` (${userData.group_code})` : '') +
-      (userData.district_name ? ' — ' + userData.district_name : '');
+      (userData?.group_name || '') + (userData?.group_code ? ` (${userData.group_code})` : '') +
+      (userData?.district_name ? ' — ' + userData.district_name : '');
   }
 
+  showSection('profile', document.querySelector('.nav-sub-item[onclick*="profile"]'));
 })();
 
 // ── Profile save ──────────────────────────────────────────────────────────────
@@ -51,10 +54,11 @@ async function saveProfile() {
   };
   const updated = await api('PUT', '/api/profile', body);
   if (updated && !updated.error) {
-    sessionStorage.setItem('lsa_user', JSON.stringify({ ...userData, ...updated }));
+    const updatedPerson = updated.person || updated;
+    sessionStorage.setItem('lsa_person', JSON.stringify({ ...(personData || {}), ...updatedPerson }));
     el.innerHTML = '<div class="alert alert-success"><span class="alert-icon">✅</span> Profile updated.</div>';
-    document.getElementById('user-name').textContent = updated.name;
-    document.getElementById('profile-name-display').textContent = updated.name;
+    document.getElementById('user-name').textContent = updatedPerson.name;
+    document.getElementById('profile-name-display').textContent = updatedPerson.name;
   } else {
     el.innerHTML = `<div class="alert alert-danger"><span class="alert-icon">❌</span> ${updated?.error || 'Error saving profile.'}</div>`;
   }
@@ -80,7 +84,7 @@ async function changePassword() {
 
 // ── Utilities ─────────────────────────────────────────────────────────────────
 const SECTION_TITLES = {
-  home:         ['Dashboard',                `Welcome back, ${userData?.name?.split(' ')[0] || 'Scout'}!`],
+  home:         ['Dashboard',                `Welcome back, ${personData?.name?.split(' ')[0] || userData?.name?.split(' ')[0] || 'Scout'}!`],
   profile:      ['My Profile',              'View and update your information'],
   partnerships: ['Partnerships & Rewards',  'Exclusive member benefits'],
   'content-info':      ['Content', 'Info'],
@@ -139,6 +143,7 @@ window.addEventListener('resize', () => {
 function logout() {
   sessionStorage.removeItem('lsa_token');
   sessionStorage.removeItem('lsa_user');
+  sessionStorage.removeItem('lsa_person');
   window.location.href = 'index.html';
 }
 

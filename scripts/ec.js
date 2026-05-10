@@ -1,6 +1,7 @@
 // ── Auth guard ──────────────────────────────────────────────────────────────
 const lsaToken = sessionStorage.getItem('lsa_token');
 const userData = JSON.parse(sessionStorage.getItem('lsa_user') || 'null');
+const personData = JSON.parse(sessionStorage.getItem('lsa_person') || 'null');
 if (!lsaToken || !userData || userData.dashboard !== 'admin' || userData.level !== 'ec') {
   window.location.href = 'index.html';
 }
@@ -19,12 +20,13 @@ async function api(method, path, body) {
 let allEvents = [], allReports = [], allUsers = [];
 
 (async function init() {
-  if (userData) {
-    const initials = userData.name.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase();
+  const displayName = personData?.name || userData?.name || '';
+  if (displayName) {
+    const initials = displayName.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase();
     document.getElementById('user-avatar').textContent = initials;
-    document.getElementById('user-name').textContent = userData.name;
+    document.getElementById('user-name').textContent = displayName;
     document.getElementById('user-role-label').textContent =
-      userData.role_title || 'EC President';
+      userData?.role_title || 'EC President';
   }
 
   const stats = await api('GET', '/api/stats');
@@ -38,6 +40,7 @@ let allEvents = [], allReports = [], allUsers = [];
   }
 
   await Promise.all([loadUsers(), loadEvents(), loadComms()]);
+  showSection('inbox-requests', document.querySelector('.nav-sub-item[onclick*="inbox-requests"]'));
 })();
 
 // ── USERS ─────────────────────────────────────────────────────────────────────
@@ -52,19 +55,22 @@ function renderUsersTable(users) {
   else if (usersTabFilter === 'members') display = users.filter(u => u.level === 'member');
   const tbody = document.getElementById('users-tbody');
   if (!display.length) {
-    tbody.innerHTML = '<tr><td colspan="6" class="text-muted text-sm" style="padding:1rem;">No users in this category.</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="5" class="text-muted text-sm" style="padding:1rem;">No users in this category.</td></tr>';
     return;
   }
   tbody.innerHTML = display.map(u => `
     <tr style="${!u.editable ? 'opacity:0.8;' : ''}">
-      <td class="td-name">${escHtml(u.name)}${!u.editable ? ' <span class="badge badge-neutral" style="font-size:0.7rem;">view only</span>' : ''}</td>
-      <td><code>${escHtml(u.username)}</code></td>
+      <td class="td-name">
+        ${escHtml(u.person_name || u.name)}
+        ${!u.editable ? ' <span class="badge badge-neutral" style="font-size:0.7rem;">view only</span>' : ''}
+        <div class="text-muted text-sm">${escHtml(u.person_email || '')}</div>
+      </td>
       <td><span class="badge badge-neutral" style="text-transform:capitalize;">${u.level}</span></td>
       <td>${u.color ? `<span class="badge" style="background:${colorBg(u.color)};color:#333;">${u.color}</span>` : '<span class="text-muted">—</span>'}</td>
       <td style="font-size:0.82rem;">${u.role_title ? escHtml(u.role_title) : '—'}</td>
       <td>
-        ${u.editable ? `
-        <button class="btn btn-sm btn-secondary" onclick="openEditUserModal(${u.id})">✏️ Edit</button>
+        ${u.editable && u.person_id ? `
+        <button class="btn btn-sm btn-secondary" onclick="openEditUserModal(${u.person_id})">✏️ Edit</button>
         ` : '<span class="text-muted text-sm">—</span>'}
       </td>
     </tr>`).join('');
@@ -73,7 +79,8 @@ function renderUsersTable(users) {
 function filterUsers() {
   const q = document.getElementById('user-search').value.toLowerCase();
   renderUsersTable(allUsers.filter(u =>
-    u.name.toLowerCase().includes(q) || u.username.toLowerCase().includes(q)
+    (u.person_name || u.name || '').toLowerCase().includes(q) ||
+    (u.person_email || '').toLowerCase().includes(q)
   ));
 }
 
@@ -81,33 +88,42 @@ function colorBg(c) {
   return { pink: '#FEE2E2', yellow: '#FEF3C7', green: '#D1FAE5', red: '#FEE2E2' }[c] || '#F3F4F6';
 }
 
-let editingUserId = null;
+let editingPersonId = null;
+
+function _roleLabel(u) {
+  const parts = [u.role_title || u.level];
+  if (u.color) parts.push(u.color);
+  const vacant = !u.person_id ? ' (vacant)' : '';
+  return parts.join(' · ') + vacant;
+}
 
 function openAddUserModal() {
-  editingUserId = null;
-  document.getElementById('user-modal-title').textContent = 'Add GC Commissioner';
+  editingPersonId = null;
+  document.getElementById('user-modal-title').textContent = 'Add Person';
   document.getElementById('um-pw-label').textContent = 'Password *';
   document.getElementById('um-id').value = '';
-  ['um-name','um-username','um-email','um-role-title','um-password'].forEach(id => {
+  ['um-name','um-email','um-password'].forEach(id => {
     document.getElementById(id).value = '';
   });
-  document.getElementById('um-color').value = '';
+  const sel = document.getElementById('um-role-id');
+  const editableRoles = allUsers.filter(u => u.editable);
+  sel.innerHTML = '<option value="">— No role assigned yet —</option>' +
+    editableRoles.map(u => `<option value="${u.id}">${escHtml(_roleLabel(u))}</option>`).join('');
+  document.getElementById('um-role-group').style.display = '';
   document.getElementById('user-modal').classList.add('open');
 }
 
-function openEditUserModal(userId) {
-  const u = allUsers.find(x => x.id === userId);
+function openEditUserModal(personId) {
+  const u = allUsers.find(x => x.person_id === personId);
   if (!u) return;
-  editingUserId = userId;
-  document.getElementById('user-modal-title').textContent = 'Edit GC Commissioner';
+  editingPersonId = personId;
+  document.getElementById('user-modal-title').textContent = 'Edit Person';
   document.getElementById('um-pw-label').textContent = 'New Password (leave blank to keep current)';
-  document.getElementById('um-id').value = userId;
-  document.getElementById('um-name').value = u.name;
-  document.getElementById('um-username').value = u.username;
-  document.getElementById('um-email').value = u.email || '';
-  document.getElementById('um-color').value = u.color || '';
-  document.getElementById('um-role-title').value = u.role_title || '';
+  document.getElementById('um-id').value = personId;
+  document.getElementById('um-name').value = u.person_name || u.name;
+  document.getElementById('um-email').value = u.person_email || '';
   document.getElementById('um-password').value = '';
+  document.getElementById('um-role-group').style.display = 'none';
   document.getElementById('user-modal').classList.add('open');
 }
 
@@ -116,31 +132,25 @@ function closeUserModal() {
 }
 
 async function saveUser() {
-  const body = {
-    name: document.getElementById('um-name').value.trim(),
-    username: document.getElementById('um-username').value.trim(),
-    email: document.getElementById('um-email').value.trim() || null,
-    dashboard: 'admin',
-    level: 'gc',
-    color: document.getElementById('um-color').value || null,
-    role_title: document.getElementById('um-role-title').value.trim() || null,
-    password: document.getElementById('um-password').value || null,
-  };
+  const name     = document.getElementById('um-name').value.trim();
+  const email    = document.getElementById('um-email').value.trim();
+  const password = document.getElementById('um-password').value;
+  const role_id  = document.getElementById('um-role-id')?.value || null;
 
-  if (!body.name || !body.username || (!editingUserId && !body.password)) {
-    toast('Name, username and password are required.', 'danger');
+  if (!name || !email || (!editingPersonId && !password)) {
+    toast('Name, email and password are required.', 'danger');
     return;
   }
 
   let res;
-  if (editingUserId) {
-    res = await api('PUT', `/api/users/${editingUserId}`, body);
+  if (editingPersonId) {
+    res = await api('PUT', `/api/users/${editingPersonId}`, { name, email, password: password || null });
   } else {
-    res = await api('POST', '/api/users', body);
+    res = await api('POST', '/api/persons', { name, email, password, role_id: role_id ? parseInt(role_id) : null });
   }
 
-  if (res && res.id) {
-    toast(editingUserId ? 'Commissioner updated.' : 'Commissioner created.', 'success');
+  if (res && (res.person_id || res.id)) {
+    toast(editingPersonId ? 'Person updated.' : 'Person created.', 'success');
     closeUserModal();
     allUsers = await api('GET', '/api/users') || [];
     renderUsersTable(allUsers);
@@ -449,6 +459,7 @@ window.addEventListener('resize', () => {
 function logout() {
   sessionStorage.removeItem('lsa_token');
   sessionStorage.removeItem('lsa_user');
+  sessionStorage.removeItem('lsa_person');
   window.location.href = 'index.html';
 }
 
@@ -470,3 +481,6 @@ function fmtDate(iso) {
   if (!iso) return '—';
   return new Date(iso).toLocaleDateString('en-GB', { day:'numeric', month:'short', year:'numeric' });
 }
+
+function renderHomePendingEvents() {}
+function renderHomePendingReports() {}
