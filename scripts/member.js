@@ -82,6 +82,44 @@ async function changePassword() {
   }
 }
 
+// ── Content ───────────────────────────────────────────────────────────────────
+let _contentCache = null;
+
+async function _fetchContent() {
+  if (_contentCache) return _contentCache;
+  _contentCache = await api('GET', '/api/member/content') || [];
+  return _contentCache;
+}
+
+const CONTENT_TYPE_MAP = {
+  'content-info':      ['notification', 'resource'],
+  'content-education': ['training'],
+  'content-promotion': ['activity'],
+};
+
+async function renderContentSection(key) {
+  const el = document.getElementById('sec-' + key);
+  el.innerHTML = '<div class="text-muted text-sm" style="padding:1rem;">Loading…</div>';
+  const all   = await _fetchContent();
+  const types = CONTENT_TYPE_MAP[key];
+  const items = all.filter(c => types.includes(c.content_type));
+  if (!items.length) {
+    el.innerHTML = '<div class="text-muted text-sm" style="padding:1rem;">No content available yet.</div>';
+    return;
+  }
+  el.innerHTML = items.map(c => `
+    <div class="card" style="margin-bottom:1rem;">
+      <div class="card-header" style="display:flex;justify-content:space-between;align-items:center;">
+        <span class="card-title">${escHtml(c.title)}</span>
+        <span class="text-muted text-sm">${fmtDate(c.created_at)}</span>
+      </div>
+      <div class="card-body">
+        ${c.body ? `<p style="margin-bottom:0.75rem;white-space:pre-wrap;">${escHtml(c.body)}</p>` : ''}
+        <div class="text-muted text-sm">From: ${escHtml(c.sender_name || '—')}</div>
+      </div>
+    </div>`).join('');
+}
+
 // ── Utilities ─────────────────────────────────────────────────────────────────
 const SECTION_TITLES = {
   home:         ['Dashboard',                `Welcome back, ${personData?.name?.split(' ')[0] || userData?.name?.split(' ')[0] || 'Scout'}!`],
@@ -102,6 +140,7 @@ function showSection(id, btn) {
   document.getElementById('section-subtitle').textContent = t[1];
   document.getElementById('sidebar').classList.remove('open');
   document.getElementById('sidebar-backdrop').classList.remove('open');
+  if (CONTENT_TYPE_MAP[id]) renderContentSection(id);
 }
 
 function switchTab(btn, paneId) {
