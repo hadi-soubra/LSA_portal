@@ -641,12 +641,14 @@ def create_user():
             return jsonify({'error': 'Email already in use'}), 409
 
         try:
+            username = email.split('@')[0]
+            pw_hash  = hash_password(data['password'])
             # Create role slot
             db.execute(
                 '''INSERT INTO users
-                   (name,dashboard,color,level,role_title,group_id,district_id,is_functional)
-                   VALUES (?,?,?,?,?,?,?,?)''',
-                (data['name'], 'member', new_color, 'member',
+                   (name,username,password_hash,dashboard,color,level,role_title,group_id,district_id,is_functional)
+                   VALUES (?,?,?,?,?,?,?,?,?,?)''',
+                (data['name'], username, pw_hash, 'member', new_color, 'member',
                  data.get('role_title'), actor['group_id'], actor['district_id'], 0))
             role_id = db.execute('SELECT last_insert_rowid()').fetchone()[0]
 
@@ -694,12 +696,14 @@ def create_user():
         return jsonify({'error': 'Email already in use'}), 409
 
     try:
+        username = email.split('@')[0]
+        pw_hash  = hash_password(data['password'])
         # Create role slot
         db.execute(
             '''INSERT INTO users
-               (name,dashboard,color,level,role_title,group_id,district_id,is_functional)
-               VALUES (?,?,?,?,?,?,?,?)''',
-            (data['name'], data['dashboard'], new_color or None, target_level,
+               (name,username,password_hash,dashboard,color,level,role_title,group_id,district_id,is_functional)
+               VALUES (?,?,?,?,?,?,?,?,?,?)''',
+            (data['name'], username, pw_hash, data['dashboard'], new_color or None, target_level,
              data.get('role_title'), data.get('group_id'), data.get('district_id'),
              int(data.get('is_functional', 0))))
         role_id = db.execute('SELECT last_insert_rowid()').fetchone()[0]
@@ -1354,6 +1358,83 @@ def remove_person_from_role(role_id, person_id):
         return jsonify({'error': 'Assignment not found'}), 404
     db.commit()
     return jsonify({'message': 'Person removed from role'})
+
+
+# ── CONTENT ──────────────────────────────────────────────────────────────────
+
+@app.route('/api/content', methods=['POST'])
+@require_auth
+def send_content():
+    actor = g.user
+    if actor['dashboard'] not in ('leader', 'admin'):
+        return jsonify({'error': 'Forbidden'}), 403
+
+    data  = request.get_json(silent=True) or {}
+    title = (data.get('title') or '').strip()
+    body  = (data.get('body')  or '').strip()
+    ctype = data.get('content_type', '')
+    colors = data.get('target_colors')          # list[str] or None
+    rtype  = data.get('target_recipient_type', 'members')
+
+    if not title:
+        return jsonify({'error': 'Title is required'}), 400
+    if ctype not in ('notification', 'training', 'activity', 'resource'):
+        return jsonify({'error': 'Invalid content type'}), 400
+    if rtype not in ('members', 'leaders', 'both'):
+        return jsonify({'error': 'Invalid recipient type'}), 400
+
+    target_group_ids    = None
+    target_district_ids = None
+    if actor['level'] in ('group', 'group_admin') and actor.get('group_id'):
+        target_group_ids = json.dumps([actor['group_id']])
+    elif actor['level'] == 'district' and actor.get('district_id'):
+        target_district_ids = json.dumps([actor['district_id']])
+    # gc / ec: no spatial restriction
+
+    db = get_db()
+    db.execute(
+        'INSERT INTO content (title, body, content_type, sent_by, target_colors, '
+        'target_recipient_type, target_district_ids, target_group_ids) '
+        'VALUES (?,?,?,?,?,?,?,?)',
+        (title, body, ctype, actor['id'],
+         json.dumps(colors) if colors else None,
+         rtype, target_district_ids, target_group_ids)
+    )
+    db.commit()
+    return jsonify({'message': 'Content sent'}), 201
+
+
+@app.route('/api/member/content')
+@require_auth
+def member_content():
+    actor = g.user
+    if actor['dashboard'] != 'member':
+        return jsonify({'error': 'Forbidden'}), 403
+
+    db   = get_db()
+    rows = db.execute(
+        "SELECT c.*, u.name AS sender_name FROM content c "
+        "LEFT JOIN users u ON u.id = c.sent_by "
+        "WHERE c.target_recipient_type IN ('members', 'both') "
+        "ORDER BY c.created_at DESC"
+    ).fetchall()
+
+    m_color       = actor.get('color')
+    m_group_id    = actor.get('group_id')
+    m_district_id = actor.get('district_id')
+
+    results = []
+    for row in rows:
+        r = dict(row)
+        if r['target_colors'] and m_color not in json.loads(r['target_colors']):
+            continue
+        if r['target_district_ids'] and m_district_id not in json.loads(r['target_district_ids']):
+            continue
+        if r['target_group_ids'] and m_group_id not in json.loads(r['target_group_ids']):
+            continue
+        results.append(r)
+
+    return jsonify(results)
 
 
 # ── Debug ─────────────────────────────────────────────────────────────────────

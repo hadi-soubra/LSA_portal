@@ -533,6 +533,77 @@ async function saveGmUser() {
   } else { toast(res?.error || 'Failed.', 'danger'); }
 }
 
+// ── Content send ─────────────────────────────────────────────────────────────
+const _initedContentSections = new Set();
+
+function renderContentSendForm(sectionId, recipientType) {
+  const el = document.getElementById('sec-' + sectionId);
+  const p  = 'cs-' + recipientType;
+  el.innerHTML = `
+    <div class="card" style="margin-bottom:1.5rem;">
+      <div class="card-header"><span class="card-title">📤 Send Content</span></div>
+      <div class="card-body">
+        <div id="${p}-alert"></div>
+        <div class="form-group">
+          <label class="form-label">Title *</label>
+          <input class="form-control" type="text" id="${p}-title" placeholder="Content title" />
+        </div>
+        <div class="form-group">
+          <label class="form-label">Message</label>
+          <textarea class="form-control" id="${p}-body" rows="4" placeholder="Write your message…"></textarea>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Category *</label>
+          <select class="form-control" id="${p}-type">
+            <option value="notification">Info / Announcement</option>
+            <option value="training">Education / Training</option>
+            <option value="activity">Promotion / Activity</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Target Units <span class="text-muted" style="font-weight:400;">(leave unchecked for all)</span></label>
+          <div style="display:flex;gap:1.25rem;flex-wrap:wrap;margin-top:0.5rem;">
+            <label style="display:flex;align-items:center;gap:0.4rem;cursor:pointer;"><input type="checkbox" class="${p}-color" value="pink" /> Pink</label>
+            <label style="display:flex;align-items:center;gap:0.4rem;cursor:pointer;"><input type="checkbox" class="${p}-color" value="yellow" /> Yellow</label>
+            <label style="display:flex;align-items:center;gap:0.4rem;cursor:pointer;"><input type="checkbox" class="${p}-color" value="green" /> Green</label>
+            <label style="display:flex;align-items:center;gap:0.4rem;cursor:pointer;"><input type="checkbox" class="${p}-color" value="red" /> Red</label>
+          </div>
+        </div>
+        <button class="btn btn-primary" onclick="submitContent('${recipientType}')">📤 Send</button>
+      </div>
+    </div>
+    <h4 style="font-size:0.95rem;color:var(--text-secondary);margin-bottom:1rem;">Recently Sent</h4>
+    <div id="${p}-history" class="text-muted text-sm">No recent content.</div>`;
+}
+
+async function submitContent(recipientType) {
+  const p       = 'cs-' + recipientType;
+  const title   = document.getElementById(`${p}-title`).value.trim();
+  const body    = document.getElementById(`${p}-body`).value.trim();
+  const ctype   = document.getElementById(`${p}-type`).value;
+  const colors  = [...document.querySelectorAll(`.${p}-color:checked`)].map(el => el.value);
+  const alertEl = document.getElementById(`${p}-alert`);
+
+  if (!title) {
+    alertEl.innerHTML = '<div class="alert alert-danger"><span class="alert-icon">❌</span> Title is required.</div>';
+    return;
+  }
+  const res = await api('POST', '/api/content', {
+    title, body, content_type: ctype,
+    target_colors: colors.length ? colors : null,
+    target_recipient_type: recipientType,
+  });
+  if (res && !res.error) {
+    alertEl.innerHTML = '<div class="alert alert-success"><span class="alert-icon">✅</span> Content sent.</div>';
+    document.getElementById(`${p}-title`).value = '';
+    document.getElementById(`${p}-body`).value  = '';
+    document.querySelectorAll(`.${p}-color`).forEach(el => el.checked = false);
+    setTimeout(() => alertEl.innerHTML = '', 3000);
+  } else {
+    alertEl.innerHTML = `<div class="alert alert-danger"><span class="alert-icon">❌</span> ${escHtml(res?.error || 'Failed to send content.')}</div>`;
+  }
+}
+
 // ── Utilities ─────────────────────────────────────────────────────────────────
 const SECTION_TITLES = {
   home:             ['Dashboard',       'Leader overview'],
@@ -577,6 +648,10 @@ function showSection(id, btn) {
   document.getElementById('section-subtitle').textContent = t[1];
   document.getElementById('sidebar').classList.remove('open');
   document.getElementById('sidebar-backdrop').classList.remove('open');
+  if (!_initedContentSections.has(id)) {
+    if (id === 'content-send-members') { _initedContentSections.add(id); renderContentSendForm(id, 'members'); }
+    if (id === 'content-send-leaders') { _initedContentSections.add(id); renderContentSendForm(id, 'leaders'); }
+  }
 }
 
 function switchTab(btn, paneId) {
