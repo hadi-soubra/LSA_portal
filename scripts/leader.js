@@ -379,7 +379,6 @@ async function submitCommsReport() {
     return;
   }
   const safetyIncident = document.getElementById('crpt-safety-incident').checked;
-  const photosTaken    = document.getElementById('crpt-photos-taken').checked;
   const res = await api('POST', '/api/reports', {
     title, body,
     request_id:              reqId,
@@ -394,8 +393,6 @@ async function submitCommsReport() {
     safety_details:  safetyIncident ? (document.getElementById('crpt-safety-details').value.trim() || null) : null,
     budget_planned:  document.getElementById('crpt-budget-planned').value.trim()  || null,
     budget_actual:   document.getElementById('crpt-budget-actual').value.trim()   || null,
-    photos_taken:    photosTaken,
-    photos_count:    photosTaken ? (parseInt(document.getElementById('crpt-photos-count').value) || null) : null,
     recommendations: document.getElementById('crpt-recommendations').value.trim() || null,
   });
   if (res && res.id) {
@@ -412,27 +409,20 @@ async function submitCommsReport() {
 function clearCommsReportForm() {
   ['crpt-title','crpt-body','crpt-objectives','crpt-outcomes','crpt-challenges',
    'crpt-safety-details','crpt-budget-planned','crpt-budget-actual','crpt-recommendations',
-   'crpt-leaders-count','crpt-members-count','crpt-guests-count','crpt-photos-count'].forEach(id => {
+   'crpt-leaders-count','crpt-members-count','crpt-guests-count'].forEach(id => {
     const el = document.getElementById(id);
     if (el) el.value = '';
   });
   document.getElementById('crpt-request').value = '';
   document.getElementById('crpt-approval-level').value = 'district';
   document.getElementById('crpt-safety-incident').checked = false;
-  document.getElementById('crpt-photos-taken').checked    = false;
   document.getElementById('crpt-safety-details-group').style.display = 'none';
-  document.getElementById('crpt-photos-count-group').style.display   = 'none';
   document.getElementById('crpt-activity-info').style.display        = 'none';
 }
 
 function toggleSafetyDetails() {
   document.getElementById('crpt-safety-details-group').style.display =
     document.getElementById('crpt-safety-incident').checked ? '' : 'none';
-}
-
-function togglePhotoCount() {
-  document.getElementById('crpt-photos-count-group').style.display =
-    document.getElementById('crpt-photos-taken').checked ? '' : 'none';
 }
 
 // ── Inbox approvals ──────────────────────────────────────────────────────────

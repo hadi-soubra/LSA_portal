@@ -1153,11 +1153,12 @@ def get_report(report_id):
     report = dict(row)
     own         = actor['id'] == report['submitted_by']
     is_admin    = actor['dashboard'] == 'admin'
-    is_reviewer = (actor['dashboard'] == 'leader' and not actor.get('color')
-                   and actor['level'] in ('group', 'group_admin'))
-    if not (own or is_admin or is_reviewer):
+    is_upper    = actor['dashboard'] in ('district', 'gc', 'ec')
+    is_group_reviewer = (actor['dashboard'] == 'leader' and not actor.get('color')
+                         and actor['level'] in ('group', 'group_admin'))
+    if not (own or is_admin or is_upper or is_group_reviewer):
         return jsonify({'error': 'Forbidden'}), 403
-    if is_reviewer and not own:
+    if is_group_reviewer and not own:
         submitter = db.execute('SELECT group_id FROM users WHERE id=?',
                                (report['submitted_by'],)).fetchone()
         if not submitter or submitter['group_id'] != actor['group_id']:

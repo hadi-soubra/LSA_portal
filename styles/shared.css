@@ -1138,7 +1138,6 @@ tbody tr:hover td { background: var(--surface-2); }
 .rpt-sig-name  { font-size: 1rem; font-weight: 600; margin: 0.2rem 0; }
 .rpt-sig-role  { font-size: 0.85rem; color: #555; }
 .rpt-sig-date  { font-size: 0.83rem; color: #555; margin-top: 0.2rem; }
-.rpt-sig-line  { margin-top: 1.75rem; font-size: 0.85rem; color: #555; }
 
 /* Print */
 #report-print-area { display: none; }

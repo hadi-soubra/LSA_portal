@@ -61,7 +61,7 @@ function renderReportDetailHTML(r) {
     ${r.request_title ? section('Activity Details', `
       ${field('Activity', r.request_title)}
       ${field('Location', r.request_location)}
-      ${r.request_start_date ? field('Date', r.request_start_date + (r.request_end_date ? ' → ' + r.request_end_date : '')) : ''}
+      ${r.request_start_date ? field('Date', fmtDate(r.request_start_date) + (r.request_end_date ? ' → ' + fmtDate(r.request_end_date) : '')) : ''}
     `) : ''}
 
     ${section('Participation', `
@@ -75,7 +75,7 @@ function renderReportDetailHTML(r) {
 
     ${r.objectives ? section('Objectives', `<div class="rpt-body-text">${esc(r.objectives)}</div>`) : ''}
 
-    ${section('What Happened', `<div class="rpt-body-text">${esc(r.body)}</div>`)}
+    ${section('What Happened', `<div class="rpt-body-text">${esc(r.body || '')}</div>`)}
 
     ${r.outcomes   ? section('Outcomes & Achievements', `<div class="rpt-body-text">${esc(r.outcomes)}</div>`)   : ''}
     ${r.challenges ? section('Challenges',              `<div class="rpt-body-text">${esc(r.challenges)}</div>`) : ''}
@@ -90,10 +90,6 @@ function renderReportDetailHTML(r) {
       ${field('Actual',  r.budget_actual)}
     `) : ''}
 
-    ${section('Photos', field('Photos taken',
-      r.photos_taken ? ('Yes' + (r.photos_count ? ` (approx. ${r.photos_count})` : '')) : 'No'
-    ))}
-
     ${r.recommendations ? section('Recommendations', `<div class="rpt-body-text">${esc(r.recommendations)}</div>`) : ''}
 
     <div class="rpt-footer">
@@ -101,7 +97,6 @@ function renderReportDetailHTML(r) {
       <div class="rpt-sig-name">${esc(r.submitter_name || '—')}</div>
       ${r.submitter_role_title ? `<div class="rpt-sig-role">${esc(r.submitter_role_title)}</div>` : ''}
       <div class="rpt-sig-date">Date: ${fmtDate(r.created_at)}</div>
-      <div class="rpt-sig-line">Signature: _______________________________</div>
     </div>
   </div>`;
 }
