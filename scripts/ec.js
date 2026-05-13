@@ -340,8 +340,8 @@ function renderInboxRptPending() {
           </div>
           <span class="badge ${STATUS_BADGE_RPT[r.status] || 'badge-neutral'}" style="text-transform:capitalize;">${r.status}</span>
         </div>
-        <div style="background:var(--bg);padding:0.75rem;border-radius:6px;font-size:0.875rem;max-height:120px;overflow-y:auto;white-space:pre-wrap;">${escHtml(r.body)}</div>
         <div class="flex gap-2 mt-3">
+          <button class="btn btn-secondary btn-sm" onclick="openReportDetail(${r.id})">📄 View Full Report</button>
           <button class="btn btn-primary btn-sm" onclick="promptAction('approve_report', ${r.id})">✓ Approve</button>
           <button class="btn btn-danger btn-sm" onclick="promptAction('reject_report', ${r.id})">✗ Reject</button>
         </div>
@@ -368,7 +368,10 @@ function filterInboxRptHistory() {
           <div class="text-muted text-sm">From: ${escHtml(r.submitter_name || '—')}${r.submitter_district ? ' · ' + escHtml(r.submitter_district) : ''}</div>
           <div class="text-muted text-sm">${fmtDate(r.updated_at || r.created_at)}</div>
         </div>
-        <span class="badge ${STATUS_BADGE_RPT[r.status] || 'badge-neutral'}" style="flex-shrink:0;text-transform:capitalize;">${r.status}</span>
+        <div style="display:flex;align-items:center;gap:0.5rem;flex-shrink:0;">
+          <button class="btn btn-sm btn-secondary" onclick="openReportDetail(${r.id})">View</button>
+          <span class="badge ${STATUS_BADGE_RPT[r.status] || 'badge-neutral'}" style="text-transform:capitalize;">${r.status}</span>
+        </div>
       </div>
     </div>`).join('');
 }

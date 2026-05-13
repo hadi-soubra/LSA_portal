@@ -413,9 +413,11 @@ function renderSentReports() {
         <div style="flex:1;min-width:0;">
           <div class="font-semibold" style="font-size:0.95rem;margin-bottom:0.25rem;">${escHtml(r.title)}</div>
           <div class="text-muted text-sm">${fmtDate(r.created_at)}</div>
-          <div class="text-sm" style="color:var(--text-secondary);margin-top:0.2rem;">${escHtml(r.body).slice(0,100)}${r.body.length > 100 ? '…' : ''}</div>
         </div>
-        <span class="badge ${STATUS_BADGE_RPT[r.status] || 'badge-neutral'}" style="flex-shrink:0;text-transform:capitalize;">${r.status}</span>
+        <div style="display:flex;align-items:center;gap:0.5rem;flex-shrink:0;">
+          <button class="btn btn-sm btn-secondary" onclick="openReportDetail(${r.id})">View</button>
+          <span class="badge ${STATUS_BADGE_RPT[r.status] || 'badge-neutral'}" style="text-transform:capitalize;">${r.status}</span>
+        </div>
       </div>
     </div>`).join('');
 }
@@ -493,8 +495,8 @@ function renderInboxRptPending() {
           </div>
           <span class="badge ${STATUS_BADGE_RPT[r.status] || 'badge-neutral'}" style="text-transform:capitalize;">${r.status}</span>
         </div>
-        <div style="background:var(--bg);padding:0.75rem;border-radius:6px;font-size:0.875rem;max-height:120px;overflow-y:auto;white-space:pre-wrap;">${escHtml(r.body)}</div>
         <div class="flex gap-2 mt-3">
+          <button class="btn btn-secondary btn-sm" onclick="openReportDetail(${r.id})">📄 View Full Report</button>
           <button class="btn btn-success btn-sm" onclick="promptAction('approve_report', ${r.id})">✅ ${r.current_level === r.required_approval_level ? 'Approve' : 'Approve & Forward to GC'}</button>
           <button class="btn btn-danger btn-sm" onclick="promptAction('reject_report', ${r.id})">❌ Reject</button>
         </div>
@@ -521,7 +523,10 @@ function filterInboxRptHistory() {
           <div class="text-muted text-sm">From: ${escHtml(r.submitter_name || '—')}${r.submitter_group ? ' · ' + escHtml(r.submitter_group) : ''}</div>
           <div class="text-muted text-sm">${fmtDate(r.updated_at || r.created_at)}</div>
         </div>
-        <span class="badge ${STATUS_BADGE_RPT[r.status] || 'badge-neutral'}" style="flex-shrink:0;text-transform:capitalize;">${r.status}</span>
+        <div style="display:flex;align-items:center;gap:0.5rem;flex-shrink:0;">
+          <button class="btn btn-sm btn-secondary" onclick="openReportDetail(${r.id})">View</button>
+          <span class="badge ${STATUS_BADGE_RPT[r.status] || 'badge-neutral'}" style="text-transform:capitalize;">${r.status}</span>
+        </div>
       </div>
     </div>`).join('');
 }
@@ -553,7 +558,10 @@ function renderTrackerReports() {
           <div class="font-semibold" style="font-size:0.95rem;margin-bottom:0.25rem;">${escHtml(r.title)}</div>
           <div class="text-muted text-sm">${fmtDate(r.created_at)}</div>
         </div>
-        <span class="badge ${STATUS_BADGE_RPT[r.status] || 'badge-neutral'}" style="flex-shrink:0;text-transform:capitalize;">${r.status}</span>
+        <div style="display:flex;align-items:center;gap:0.5rem;flex-shrink:0;">
+          <button class="btn btn-sm btn-secondary" onclick="openReportDetail(${r.id})">View</button>
+          <span class="badge ${STATUS_BADGE_RPT[r.status] || 'badge-neutral'}" style="text-transform:capitalize;">${r.status}</span>
+        </div>
       </div>
     </div>`).join('');
 }
