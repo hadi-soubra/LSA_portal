@@ -380,7 +380,33 @@ def migrate_identity_split():
     print(f'Identity split migration: {created} person accounts created.')
 
 
+def migrate_reports_v2():
+    """Add structured fields to reports table (idempotent)."""
+    conn = sqlite3.connect(DB_PATH)
+    new_cols = [
+        ('leaders_count',   'INTEGER'),
+        ('members_count',   'INTEGER'),
+        ('guests_count',    'INTEGER'),
+        ('objectives',      'TEXT'),
+        ('outcomes',        'TEXT'),
+        ('challenges',      'TEXT'),
+        ('safety_incident', 'INTEGER DEFAULT 0'),
+        ('safety_details',  'TEXT'),
+        ('budget_planned',  'TEXT'),
+        ('budget_actual',   'TEXT'),
+        ('photos_taken',    'INTEGER DEFAULT 0'),
+        ('photos_count',    'INTEGER'),
+        ('recommendations', 'TEXT'),
+    ]
+    for col, col_type in new_cols:
+        if not _column_exists(conn, 'reports', col):
+            conn.execute(f'ALTER TABLE reports ADD COLUMN {col} {col_type}')
+    conn.commit()
+    conn.close()
+
+
 if __name__ == '__main__':
     init_db()
     migrate_db()
     migrate_identity_split()
+    migrate_reports_v2()

@@ -144,9 +144,11 @@ function renderSentReports() {
         <div style="flex:1;min-width:0;">
           <div class="font-semibold" style="font-size:0.95rem;margin-bottom:0.25rem;">${escHtml(r.title)}</div>
           <div class="text-muted text-sm">${fmtDate(r.created_at)}</div>
-          <div class="text-sm" style="color:var(--text-secondary);margin-top:0.25rem;">${escHtml(r.body).slice(0,120)}${r.body.length > 120 ? '…' : ''}</div>
         </div>
-        <span class="badge ${STATUS_BADGE_RPT[r.status] || 'badge-neutral'}" style="flex-shrink:0;text-transform:capitalize;">${r.status}</span>
+        <div style="display:flex;align-items:center;gap:0.5rem;flex-shrink:0;">
+          <button class="btn btn-sm btn-secondary" onclick="openReportDetail(${r.id})">View</button>
+          <span class="badge ${STATUS_BADGE_RPT[r.status] || 'badge-neutral'}" style="text-transform:capitalize;">${r.status}</span>
+        </div>
       </div>
     </div>`).join('');
 }
@@ -223,10 +225,10 @@ function renderInboxReportsPending() {
         </div>
         <span class="badge badge-warning">Awaiting review</span>
       </div>
-      ${r.body ? `<div class="text-sm" style="color:var(--text-secondary);">${escHtml(r.body).slice(0,200)}${r.body.length > 200 ? '…' : ''}</div>` : ''}
       <div class="text-sm text-muted">Approval needed: <strong>${r.required_approval_level.toUpperCase()}</strong></div>
       <div id="inbox-rpt-alert-${r.id}"></div>
       <div class="flex gap-2" style="margin-top:0.5rem;">
+        <button class="btn btn-secondary btn-sm" onclick="openReportDetail(${r.id})">📄 View Full Report</button>
         <button class="btn btn-success btn-sm" onclick="approveReport(${r.id})">✅ Approve</button>
         <button class="btn btn-danger btn-sm" onclick="rejectReport(${r.id})">❌ Reject</button>
       </div>
@@ -248,7 +250,10 @@ function renderInboxReportsHistory() {
           <div class="text-muted text-sm">From: ${escHtml(r.submitter_name || '—')}${r.submitter_group ? ' · ' + escHtml(r.submitter_group) : ''}</div>
           <div class="text-muted text-sm">${fmtDate(r.updated_at || r.created_at)}</div>
         </div>
-        <span class="badge ${STATUS_BADGE_RPT[r.status] || 'badge-neutral'}" style="flex-shrink:0;text-transform:capitalize;">${r.status}</span>
+        <div style="display:flex;align-items:center;gap:0.5rem;flex-shrink:0;">
+          <button class="btn btn-sm btn-secondary" onclick="openReportDetail(${r.id})">View</button>
+          <span class="badge ${STATUS_BADGE_RPT[r.status] || 'badge-neutral'}" style="text-transform:capitalize;">${r.status}</span>
+        </div>
       </div>
     </div>`).join('');
 }
@@ -286,7 +291,10 @@ function renderTrackerReports() {
           <div class="font-semibold" style="font-size:0.95rem;margin-bottom:0.25rem;">${escHtml(r.title)}</div>
           <div class="text-muted text-sm">${fmtDate(r.created_at)}</div>
         </div>
-        <span class="badge ${STATUS_BADGE_RPT[r.status] || 'badge-neutral'}" style="flex-shrink:0;text-transform:capitalize;">${r.status}</span>
+        <div style="display:flex;align-items:center;gap:0.5rem;flex-shrink:0;">
+          <button class="btn btn-sm btn-secondary" onclick="openReportDetail(${r.id})">View</button>
+          <span class="badge ${STATUS_BADGE_RPT[r.status] || 'badge-neutral'}" style="text-transform:capitalize;">${r.status}</span>
+        </div>
       </div>
     </div>`).join('');
 }
@@ -344,36 +352,87 @@ function populateReportRequestDropdown() {
   if (noMsg) noMsg.style.display = eligibleRequests.length ? 'none' : '';
 }
 
+function onReportRequestChange() {
+  const val  = document.getElementById('crpt-request').value;
+  const info = document.getElementById('crpt-activity-info');
+  const req  = eligibleRequests.find(r => String(r.id) === val);
+  if (!req) { info.style.display = 'none'; return; }
+  const parts = [];
+  if (req.location)   parts.push(`📍 ${escHtml(req.location)}`);
+  if (req.start_date) parts.push(`📅 ${req.start_date}`);
+  info.innerHTML = parts.join(' &nbsp;·&nbsp; ');
+  info.style.display = parts.length ? '' : 'none';
+}
+
 async function submitCommsReport() {
-  const title    = document.getElementById('crpt-title').value.trim();
-  const body     = document.getElementById('crpt-body').value.trim();
-  const reqId    = parseInt(document.getElementById('crpt-request').value) || null;
-  const level    = document.getElementById('crpt-approval-level').value;
-  const alertEl  = document.getElementById('crpt-alert');
+  const title   = document.getElementById('crpt-title').value.trim();
+  const body    = document.getElementById('crpt-body').value.trim();
+  const reqId   = parseInt(document.getElementById('crpt-request').value) || null;
+  const level   = document.getElementById('crpt-approval-level').value;
+  const alertEl = document.getElementById('crpt-alert');
   if (!title || !body) {
-    alertEl.innerHTML = '<div class="alert alert-danger"><span class="alert-icon">❌</span> Title and body are required.</div>';
+    alertEl.innerHTML = '<div class="alert alert-danger"><span class="alert-icon">❌</span> Title and "What Happened" are required.</div>';
     return;
   }
+  if (!reqId) {
+    alertEl.innerHTML = '<div class="alert alert-danger"><span class="alert-icon">❌</span> Please select a linked activity.</div>';
+    return;
+  }
+  const safetyIncident = document.getElementById('crpt-safety-incident').checked;
+  const photosTaken    = document.getElementById('crpt-photos-taken').checked;
   const res = await api('POST', '/api/reports', {
     title, body,
-    request_id: reqId,
+    request_id:              reqId,
     required_approval_level: level,
+    leaders_count:   parseInt(document.getElementById('crpt-leaders-count').value) || null,
+    members_count:   parseInt(document.getElementById('crpt-members-count').value) || null,
+    guests_count:    parseInt(document.getElementById('crpt-guests-count').value)  || null,
+    objectives:      document.getElementById('crpt-objectives').value.trim()      || null,
+    outcomes:        document.getElementById('crpt-outcomes').value.trim()        || null,
+    challenges:      document.getElementById('crpt-challenges').value.trim()      || null,
+    safety_incident: safetyIncident,
+    safety_details:  safetyIncident ? (document.getElementById('crpt-safety-details').value.trim() || null) : null,
+    budget_planned:  document.getElementById('crpt-budget-planned').value.trim()  || null,
+    budget_actual:   document.getElementById('crpt-budget-actual').value.trim()   || null,
+    photos_taken:    photosTaken,
+    photos_count:    photosTaken ? (parseInt(document.getElementById('crpt-photos-count').value) || null) : null,
+    recommendations: document.getElementById('crpt-recommendations').value.trim() || null,
   });
   if (res && res.id) {
-    alertEl.innerHTML = '<div class="alert alert-success"><span class="alert-icon">✅</span> Report submitted.</div>';
+    const reportId = res.id;
+    alertEl.innerHTML = `<div class="alert alert-success"><span class="alert-icon">✅</span> Report submitted. <button class="btn btn-sm btn-secondary" style="margin-left:0.5rem;" onclick="openReportDetail(${reportId})">View Report</button></div>`;
     clearCommsReportForm();
     await loadComms();
   } else {
     alertEl.innerHTML = `<div class="alert alert-danger"><span class="alert-icon">❌</span> ${res?.error || 'Error submitting.'}</div>`;
+    setTimeout(() => alertEl.innerHTML = '', 4000);
   }
-  setTimeout(() => alertEl.innerHTML = '', 4000);
 }
 
 function clearCommsReportForm() {
-  document.getElementById('crpt-title').value = '';
-  document.getElementById('crpt-body').value = '';
+  ['crpt-title','crpt-body','crpt-objectives','crpt-outcomes','crpt-challenges',
+   'crpt-safety-details','crpt-budget-planned','crpt-budget-actual','crpt-recommendations',
+   'crpt-leaders-count','crpt-members-count','crpt-guests-count','crpt-photos-count'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.value = '';
+  });
   document.getElementById('crpt-request').value = '';
   document.getElementById('crpt-approval-level').value = 'district';
+  document.getElementById('crpt-safety-incident').checked = false;
+  document.getElementById('crpt-photos-taken').checked    = false;
+  document.getElementById('crpt-safety-details-group').style.display = 'none';
+  document.getElementById('crpt-photos-count-group').style.display   = 'none';
+  document.getElementById('crpt-activity-info').style.display        = 'none';
+}
+
+function toggleSafetyDetails() {
+  document.getElementById('crpt-safety-details-group').style.display =
+    document.getElementById('crpt-safety-incident').checked ? '' : 'none';
+}
+
+function togglePhotoCount() {
+  document.getElementById('crpt-photos-count-group').style.display =
+    document.getElementById('crpt-photos-taken').checked ? '' : 'none';
 }
 
 // ── Inbox approvals ──────────────────────────────────────────────────────────
@@ -404,6 +463,113 @@ async function rejectReport(id) {
   const res = await api('PUT', `/api/reports/${id}/reject`, { note: note.trim() || null });
   if (res && res.message) { toast('Report rejected.', 'danger'); await loadComms(); }
   else { const el = document.getElementById(`inbox-rpt-alert-${id}`); if (el) el.innerHTML = `<div class="alert alert-danger"><span class="alert-icon">❌</span> ${res?.error || 'Failed.'}</div>`; }
+}
+
+// ── Report detail & print ─────────────────────────────────────────────────────
+
+async function openReportDetail(reportId) {
+  const modal = document.getElementById('report-detail-modal');
+  const body  = document.getElementById('report-detail-body');
+  body.innerHTML = '<div class="text-muted text-sm" style="padding:2rem;">Loading…</div>';
+  modal.classList.add('open');
+  const r = await api('GET', `/api/reports/${reportId}`);
+  if (!r || r.error) {
+    body.innerHTML = `<div class="alert alert-danger" style="margin:1rem;">${r?.error || 'Failed to load report.'}</div>`;
+    return;
+  }
+  const html = renderReportDetailHTML(r);
+  body.innerHTML = html;
+  document.getElementById('report-print-area').innerHTML = html;
+}
+
+function closeReportDetail() {
+  document.getElementById('report-detail-modal').classList.remove('open');
+}
+
+function printReport() {
+  window.print();
+}
+
+function renderReportDetailHTML(r) {
+  const total = (r.leaders_count || 0) + (r.members_count || 0) + (r.guests_count || 0);
+  const esc   = escHtml;
+  const field = (label, val) => val
+    ? `<div class="rpt-field-row"><span class="rpt-field-label">${label}</span><span class="rpt-field-value">${esc(String(val))}</span></div>`
+    : '';
+  const section = (title, content) =>
+    `<div class="rpt-section"><div class="rpt-section-title">${title}</div>${content}</div>`;
+
+  return `
+  <div class="rpt-doc">
+    <div class="rpt-header">
+      <img src="assets/LSA-logo-header-compact.png" alt="LSA" class="rpt-logo" />
+      <div class="rpt-header-text">
+        <div class="rpt-org">Lebanese Scouts Association</div>
+        <div class="rpt-doc-type">Activity Report</div>
+      </div>
+      <span class="badge ${STATUS_BADGE_RPT[r.status] || 'badge-neutral'} rpt-status-badge" style="text-transform:capitalize;">${r.status}</span>
+    </div>
+
+    <div class="rpt-title">${esc(r.title)}</div>
+    <div class="rpt-meta-row">
+      <span>Submitted: ${fmtDate(r.created_at)}</span>
+      <span>Approval level: ${(r.required_approval_level || '').toUpperCase()}</span>
+    </div>
+
+    ${section('Submitted By', `
+      ${field('Name',     r.submitter_name)}
+      ${field('Role',     r.submitter_role_title)}
+      ${field('Unit',     r.submitter_color ? r.submitter_color.charAt(0).toUpperCase() + r.submitter_color.slice(1) : null)}
+      ${field('Group',    r.submitter_group)}
+      ${field('District', r.submitter_district)}
+    `)}
+
+    ${r.request_title ? section('Activity Details', `
+      ${field('Activity', r.request_title)}
+      ${field('Location', r.request_location)}
+      ${r.request_start_date ? field('Date', r.request_start_date + (r.request_end_date ? ' → ' + r.request_end_date : '')) : ''}
+    `) : ''}
+
+    ${section('Participation', `
+      <div class="rpt-participation-grid">
+        <div class="rpt-stat"><div class="rpt-stat-val">${r.leaders_count ?? '—'}</div><div class="rpt-stat-label">Leaders</div></div>
+        <div class="rpt-stat"><div class="rpt-stat-val">${r.members_count ?? '—'}</div><div class="rpt-stat-label">Members</div></div>
+        <div class="rpt-stat"><div class="rpt-stat-val">${r.guests_count  ?? '—'}</div><div class="rpt-stat-label">Guests</div></div>
+        <div class="rpt-stat"><div class="rpt-stat-val">${total || '—'}</div><div class="rpt-stat-label">Total</div></div>
+      </div>
+    `)}
+
+    ${r.objectives ? section('Objectives', `<div class="rpt-body-text">${esc(r.objectives)}</div>`) : ''}
+
+    ${section('What Happened', `<div class="rpt-body-text">${esc(r.body)}</div>`)}
+
+    ${r.outcomes   ? section('Outcomes & Achievements', `<div class="rpt-body-text">${esc(r.outcomes)}</div>`)   : ''}
+    ${r.challenges ? section('Challenges',              `<div class="rpt-body-text">${esc(r.challenges)}</div>`) : ''}
+
+    ${section('Safety', `
+      ${field('Incident reported', r.safety_incident ? 'Yes' : 'No')}
+      ${r.safety_incident && r.safety_details ? `<div class="rpt-body-text" style="margin-top:0.4rem;color:#dc2626;">${esc(r.safety_details)}</div>` : ''}
+    `)}
+
+    ${r.budget_planned || r.budget_actual ? section('Budget', `
+      ${field('Planned', r.budget_planned)}
+      ${field('Actual',  r.budget_actual)}
+    `) : ''}
+
+    ${section('Photos', field('Photos taken',
+      r.photos_taken ? ('Yes' + (r.photos_count ? ` (approx. ${r.photos_count})` : '')) : 'No'
+    ))}
+
+    ${r.recommendations ? section('Recommendations', `<div class="rpt-body-text">${esc(r.recommendations)}</div>`) : ''}
+
+    <div class="rpt-footer">
+      <div class="rpt-sig-label">Submitted by</div>
+      <div class="rpt-sig-name">${esc(r.submitter_name || '—')}</div>
+      ${r.submitter_role_title ? `<div class="rpt-sig-role">${esc(r.submitter_role_title)}</div>` : ''}
+      <div class="rpt-sig-date">Date: ${fmtDate(r.created_at)}</div>
+      <div class="rpt-sig-line">Signature: _______________________________</div>
+    </div>
+  </div>`;
 }
 
 // ── Group user management (group leaders only) ────────────────────────────────

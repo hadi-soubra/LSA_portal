@@ -13,7 +13,7 @@ import jwt
 from flask import Flask, g, jsonify, request, send_from_directory
 from flask_cors import CORS
 
-from db import get_db_path, hash_password, init_db, migrate_db, migrate_identity_split
+from db import get_db_path, hash_password, init_db, migrate_db, migrate_identity_split, migrate_reports_v2
 
 # ── App setup ─────────────────────────────────────────────────────────────────
 
@@ -1104,14 +1104,65 @@ def submit_report():
     db.execute(
         '''INSERT INTO reports
            (title, body, submitted_by, request_id, required_approval_level,
-            current_level, status, created_at, updated_at)
-           VALUES (?,?,?,?,?,?,?,?,?)''',
+            current_level, status, created_at, updated_at,
+            leaders_count, members_count, guests_count,
+            objectives, outcomes, challenges,
+            safety_incident, safety_details,
+            budget_planned, budget_actual,
+            photos_taken, photos_count, recommendations)
+           VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)''',
         (data['title'], data['body'], actor['id'], request_id,
-         data['required_approval_level'], start_level, 'pending', now, now))
+         data['required_approval_level'], start_level, 'pending', now, now,
+         data.get('leaders_count'), data.get('members_count'), data.get('guests_count'),
+         data.get('objectives'), data.get('outcomes'), data.get('challenges'),
+         1 if data.get('safety_incident') else 0, data.get('safety_details'),
+         data.get('budget_planned'), data.get('budget_actual'),
+         1 if data.get('photos_taken') else 0, data.get('photos_count'),
+         data.get('recommendations')))
     db.commit()
     new_id = db.execute('SELECT last_insert_rowid()').fetchone()[0]
     return jsonify(dict(db.execute('SELECT * FROM reports WHERE id=?',
                                    (new_id,)).fetchone())), 201
+
+
+@app.route('/api/reports/<int:report_id>', methods=['GET'])
+@require_auth
+def get_report(report_id):
+    actor = g.user
+    db = get_db()
+    row = db.execute('''
+        SELECT r.*,
+               u.name       AS submitter_name,
+               u.color      AS submitter_color,
+               u.role_title AS submitter_role_title,
+               g.name       AS submitter_group,
+               d.name       AS submitter_district,
+               e.title      AS request_title,
+               e.location   AS request_location,
+               e.start_date AS request_start_date,
+               e.end_date   AS request_end_date
+        FROM reports r
+        JOIN users u ON r.submitted_by = u.id
+        LEFT JOIN event_requests e ON r.request_id = e.id
+        LEFT JOIN groups    g ON u.group_id    = g.id
+        LEFT JOIN districts d ON u.district_id = d.id
+        WHERE r.id = ?
+    ''', (report_id,)).fetchone()
+    if not row:
+        return jsonify({'error': 'Not found'}), 404
+    report = dict(row)
+    own         = actor['id'] == report['submitted_by']
+    is_admin    = actor['dashboard'] == 'admin'
+    is_reviewer = (actor['dashboard'] == 'leader' and not actor.get('color')
+                   and actor['level'] in ('group', 'group_admin'))
+    if not (own or is_admin or is_reviewer):
+        return jsonify({'error': 'Forbidden'}), 403
+    if is_reviewer and not own:
+        submitter = db.execute('SELECT group_id FROM users WHERE id=?',
+                               (report['submitted_by'],)).fetchone()
+        if not submitter or submitter['group_id'] != actor['group_id']:
+            return jsonify({'error': 'Forbidden'}), 403
+    return jsonify(report)
 
 
 @app.route('/api/reports/<int:report_id>/approve', methods=['PUT'])
@@ -1454,4 +1505,5 @@ if __name__ == '__main__':
     init_db()
     migrate_db()
     migrate_identity_split()
+    migrate_reports_v2()
     app.run(debug=True, port=5000)
