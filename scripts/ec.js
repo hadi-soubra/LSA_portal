@@ -297,6 +297,7 @@ function renderInboxReqPending() {
       <div class="text-sm text-muted">Requires: <strong>${e.required_approval_level.toUpperCase()}</strong></div>
       ${e.notes ? `<div class="text-sm" style="color:var(--text-secondary);">Notes: ${escHtml(e.notes)}</div>` : ''}
       <div class="flex gap-2" style="margin-top:0.5rem;">
+        <button class="btn btn-secondary btn-sm" onclick="openRequestDetail(${e.id})">📋 View Request</button>
         <button class="btn btn-success btn-sm" onclick="promptAction('approve', ${e.id})">✅ Final Approve</button>
         <button class="btn btn-danger btn-sm" onclick="promptAction('reject', ${e.id})">❌ Reject</button>
       </div>
@@ -322,7 +323,10 @@ function filterInboxReqHistory() {
           <div class="text-muted text-sm">From: ${escHtml(e.submitter_name || '—')}${e.submitter_district ? ' · ' + escHtml(e.submitter_district) : ''}</div>
           <div class="text-muted text-sm">${fmtDate(e.updated_at || e.created_at)}</div>
         </div>
-        <span class="badge ${STATUS_BADGE[e.status] || 'badge-neutral'}" style="flex-shrink:0;text-transform:capitalize;">${e.status}</span>
+        <div style="display:flex;align-items:center;gap:0.5rem;flex-shrink:0;">
+          <button class="btn btn-sm btn-secondary" onclick="openRequestDetail(${e.id})">View</button>
+          <span class="badge ${STATUS_BADGE[e.status] || 'badge-neutral'}" style="text-transform:capitalize;">${e.status}</span>
+        </div>
       </div>
     </div>`).join('');
 }

@@ -1,4 +1,12 @@
 // ── Shared report submission form ─────────────────────────────────────────────
+function _flashReportCard(type) {
+  const card = document.getElementById('crpt-alert')?.closest('.card');
+  if (!card) return;
+  card.classList.remove('card-flash-success', 'card-flash-error');
+  void card.offsetWidth;
+  card.classList.add(type === 'success' ? 'card-flash-success' : 'card-flash-error');
+}
+
 // Used by: leader, gc, district dashboards.
 //
 // Depends on globals provided by the loading dashboard's script:
@@ -52,10 +60,12 @@ async function submitCommsReport() {
 
   if (!title || !body) {
     alertEl.innerHTML = '<div class="alert alert-danger"><span class="alert-icon">❌</span> Title and "What Happened" are required.</div>';
+    _flashReportCard('error');
     return;
   }
   if (!reqId) {
     alertEl.innerHTML = '<div class="alert alert-danger"><span class="alert-icon">❌</span> Please select a linked activity.</div>';
+    _flashReportCard('error');
     return;
   }
 
@@ -77,13 +87,14 @@ async function submitCommsReport() {
     recommendations: document.getElementById('crpt-recommendations').value.trim() || null,
   });
   if (res && res.id) {
-    const reportId = res.id;
-    alertEl.innerHTML = `<div class="alert alert-success"><span class="alert-icon">✅</span> Report submitted. <button class="btn btn-sm btn-secondary" style="margin-left:0.5rem;" onclick="openReportDetail(${reportId})">View Report</button></div>`;
+    alertEl.innerHTML = '';
+    _flashReportCard('success');
+    toast(`Report submitted. <button class="btn btn-sm" style="margin-left:0.25rem;background:rgba(255,255,255,0.25);color:#fff;border:none;padding:0.2rem 0.5rem;border-radius:4px;cursor:pointer;" onclick="openReportDetail(${res.id})">View</button>`, 'success');
     clearCommsReportForm();
     await loadComms();
   } else {
-    alertEl.innerHTML = `<div class="alert alert-danger"><span class="alert-icon">❌</span> ${res?.error || 'Error submitting.'}</div>`;
-    setTimeout(() => alertEl.innerHTML = '', 4000);
+    _flashReportCard('error');
+    toast(res?.error || 'Error submitting.', 'danger');
   }
 }
 

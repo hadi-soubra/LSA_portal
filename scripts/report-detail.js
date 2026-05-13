@@ -1,6 +1,8 @@
 // ── Shared report detail & print ─────────────────────────────
 // Depends on: escHtml(), fmtDate(), STATUS_BADGE_RPT  (defined per-dashboard)
 
+let _reportPrintTitle = 'Activity Report';
+
 async function openReportDetail(reportId) {
   const modal = document.getElementById('report-detail-modal');
   const body  = document.getElementById('report-detail-body');
@@ -11,6 +13,8 @@ async function openReportDetail(reportId) {
     body.innerHTML = `<div class="alert alert-danger" style="margin:1rem;">${r?.error || 'Failed to load report.'}</div>`;
     return;
   }
+  const date = (r.created_at || '').slice(0, 10);
+  _reportPrintTitle = `Report - ${r.title}${date ? ' - ' + date : ''}`;
   const html = renderReportDetailHTML(r);
   body.innerHTML = html;
   document.getElementById('report-print-area').innerHTML = html;
@@ -21,7 +25,11 @@ function closeReportDetail() {
 }
 
 function printReport() {
+  document.getElementById('request-print-area').innerHTML = '';
+  const prev = document.title;
+  document.title = _reportPrintTitle;
   window.print();
+  document.title = prev;
 }
 
 function renderReportDetailHTML(r) {

@@ -250,6 +250,7 @@ function renderPendingEvents() {
           <span class="badge badge-neutral">Submitted ${fmtDate(e.created_at)}</span>
         </div>
         <div class="flex gap-2">
+          <button class="btn btn-secondary" onclick="openRequestDetail(${e.id})">📋 View Request</button>
           <button class="btn btn-success" onclick="promptAction('approve', ${e.id})">
             ✓ ${e.current_level === e.required_approval_level ? 'Approve' : 'Approve & Forward to GC'}
           </button>
@@ -275,11 +276,12 @@ function renderAllEventsTable() {
       <td><span class="badge ${STATUS_BADGE[e.status] || 'badge-neutral'}"
                style="text-transform:capitalize;">${e.status}</span></td>
       <td>
-        ${e.status === 'pending' ? `
-          <div class="flex gap-2">
+        <div class="flex gap-2">
+          <button class="btn btn-sm btn-secondary" onclick="openRequestDetail(${e.id})">View</button>
+          ${e.status === 'pending' ? `
             <button class="btn btn-sm btn-success" onclick="promptAction('approve',${e.id})">✓</button>
-            <button class="btn btn-sm btn-danger"  onclick="promptAction('reject', ${e.id})">✕</button>
-          </div>` : '<span class="text-muted text-sm">—</span>'}
+            <button class="btn btn-sm btn-danger"  onclick="promptAction('reject', ${e.id})">✕</button>` : ''}
+        </div>
       </td>
     </tr>`).join('');
 }
@@ -387,8 +389,12 @@ function renderSentRequests() {
         <div style="flex:1;min-width:0;">
           <div class="font-semibold" style="font-size:0.95rem;margin-bottom:0.25rem;">${escHtml(e.title)}</div>
           <div class="text-muted text-sm">${fmtDate(e.created_at)} · Needs: ${e.required_approval_level.toUpperCase()} · At: ${e.current_level}</div>
+          ${e.location ? `<div class="text-sm" style="margin-top:0.2rem;">📍 ${escHtml(e.location)}${e.start_date ? ' · 📅 ' + e.start_date : ''}</div>` : ''}
         </div>
-        <span class="badge ${STATUS_BADGE[e.status] || 'badge-neutral'}" style="flex-shrink:0;text-transform:capitalize;">${e.status}</span>
+        <div style="display:flex;align-items:center;gap:0.5rem;flex-shrink:0;">
+          <button class="btn btn-sm btn-secondary" onclick="openRequestDetail(${e.id})">View</button>
+          <span class="badge ${STATUS_BADGE[e.status] || 'badge-neutral'}" style="text-transform:capitalize;">${e.status}</span>
+        </div>
       </div>
     </div>`).join('');
 }
@@ -438,6 +444,7 @@ function renderInboxReqPending() {
       ${e.notes ? `<div class="text-sm" style="color:var(--text-secondary);">Notes: ${escHtml(e.notes)}</div>` : ''}
       <div id="inbox-alert-${e.id}"></div>
       <div class="flex gap-2" style="margin-top:0.5rem;">
+        <button class="btn btn-secondary btn-sm" onclick="openRequestDetail(${e.id})">📋 View Request</button>
         <button class="btn btn-success btn-sm" onclick="promptAction('approve', ${e.id})">✅ Approve</button>
         <button class="btn btn-danger btn-sm" onclick="promptAction('reject', ${e.id})">❌ Reject</button>
       </div>
@@ -466,7 +473,10 @@ function filterInboxReqHistory() {
           <div class="text-muted text-sm">From: ${escHtml(e.submitter_name || '—')}${e.submitter_group ? ' · ' + escHtml(e.submitter_group) : ''}${e.submitter_district ? ' · ' + escHtml(e.submitter_district) : ''}</div>
           <div class="text-muted text-sm">${fmtDate(e.updated_at || e.created_at)}</div>
         </div>
-        <span class="badge ${STATUS_BADGE[e.status] || 'badge-neutral'}" style="flex-shrink:0;text-transform:capitalize;">${e.status}</span>
+        <div style="display:flex;align-items:center;gap:0.5rem;flex-shrink:0;">
+          <button class="btn btn-sm btn-secondary" onclick="openRequestDetail(${e.id})">View</button>
+          <span class="badge ${STATUS_BADGE[e.status] || 'badge-neutral'}" style="text-transform:capitalize;">${e.status}</span>
+        </div>
       </div>
     </div>`).join('');
 }
@@ -531,7 +541,10 @@ function renderTrackerRequests() {
           <div class="font-semibold" style="font-size:0.95rem;margin-bottom:0.25rem;">${escHtml(e.title)}</div>
           <div class="text-muted text-sm">${fmtDate(e.created_at)} · Needs: ${e.required_approval_level.toUpperCase()} · At: ${e.current_level}</div>
         </div>
-        <span class="badge ${STATUS_BADGE[e.status] || 'badge-neutral'}" style="flex-shrink:0;text-transform:capitalize;">${e.status}</span>
+        <div style="display:flex;align-items:center;gap:0.5rem;flex-shrink:0;">
+          <button class="btn btn-sm btn-secondary" onclick="openRequestDetail(${e.id})">View</button>
+          <span class="badge ${STATUS_BADGE[e.status] || 'badge-neutral'}" style="text-transform:capitalize;">${e.status}</span>
+        </div>
       </div>
     </div>`).join('');
 }
@@ -577,46 +590,6 @@ function populateGroupFilter(items, groupId) {
   if (!el) return;
   const groups = [...new Set(items.map(i => i.submitter_group).filter(Boolean))];
   el.innerHTML = '<option value="">All Groups</option>' + groups.map(g => `<option value="${escHtml(g)}">${escHtml(g)}</option>`).join('');
-}
-
-async function submitCommsRequest() {
-  const title = document.getElementById('cr-title').value.trim();
-  const location = document.getElementById('cr-location').value.trim();
-  const start_date = document.getElementById('cr-date').value;
-  const alertEl = document.getElementById('cr-alert');
-
-  if (!title || !location || !start_date) {
-    alertEl.innerHTML = '<div class="alert alert-danger"><span class="alert-icon">❌</span> Title, location and start date are required.</div>';
-    return;
-  }
-
-  const res = await api('POST', '/api/events', {
-    title,
-    description: document.getElementById('cr-desc').value.trim() || null,
-    location,
-    start_date,
-    end_date: document.getElementById('cr-date-end').value || null,
-    participants: parseInt(document.getElementById('cr-participants').value) || null,
-    notes: document.getElementById('cr-notes').value.trim() || null,
-    required_approval_level: document.getElementById('cr-approval-level').value,
-  });
-
-  if (res && res.id) {
-    alertEl.innerHTML = '<div class="alert alert-success"><span class="alert-icon">✅</span> Event request submitted.</div>';
-    clearCommsRequestForm();
-    await loadComms();
-  } else {
-    alertEl.innerHTML = `<div class="alert alert-danger"><span class="alert-icon">❌</span> ${res?.error || 'Error submitting.'}</div>`;
-  }
-  setTimeout(() => alertEl.innerHTML = '', 4000);
-}
-
-function clearCommsRequestForm() {
-  ['cr-title','cr-desc','cr-date','cr-date-end','cr-location','cr-participants','cr-notes'].forEach(id => {
-    const el = document.getElementById(id);
-    if (el) el.value = '';
-  });
-  document.getElementById('cr-approval-level').value = 'gc';
 }
 
 const SECTION_TITLES = {

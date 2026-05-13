@@ -204,14 +204,81 @@
           <div class="card-header"><span class="card-title">📤 New Event Request</span></div>
           <div class="card-body">
             <div id="cr-alert"></div>
-            <div class="form-group"><label class="form-label">Event Title *</label><input class="form-control" type="text" id="cr-title" placeholder="Enter event title" /></div>
-            <div class="form-group"><label class="form-label">Description</label><textarea class="form-control" id="cr-desc" rows="2" placeholder="Describe the event…"></textarea></div>
-            <div class="form-row">
-              <div><label class="form-label">Start Date *</label><input class="form-control" type="date" id="cr-date" /></div>
-              <div><label class="form-label">End Date</label><input class="form-control" type="date" id="cr-date-end" /></div>
+
+            <div class="form-section-label">Activity Info</div>
+            <div class="form-group">
+              <label class="form-label">Event Title *</label>
+              <input class="form-control" type="text" id="cr-title" placeholder="e.g., Spring Camping Trip 2025" />
             </div>
-            <div class="form-group"><label class="form-label">Location *</label><input class="form-control" type="text" id="cr-location" placeholder="Event location" /></div>
-            <div class="form-group"><label class="form-label">Expected Participants</label><input class="form-control" type="number" id="cr-participants" min="1" /></div>
+            <div class="form-group">
+              <label class="form-label">Activity Type *</label>
+              <select class="form-control" id="cr-activity-type">
+                <option value="">— Select type —</option>
+                <option value="Camping">Camping</option>
+                <option value="Day Trip">Day Trip / Excursion</option>
+                <option value="Training">Training</option>
+                <option value="Community Service">Community Service</option>
+                <option value="Meeting">Meeting</option>
+                <option value="Competition">Competition</option>
+                <option value="Cultural Event">Cultural Event</option>
+                <option value="Other">Other</option>
+              </select>
+            </div>
+            <div class="form-row">
+              <div>
+                <label class="form-label">Start Date *</label>
+                <div style="display:flex;gap:0.5rem;align-items:center;">
+                  <input class="form-control" type="date" id="cr-date" style="flex:1;" />
+                  <button type="button" class="btn btn-sm btn-secondary" onclick="setRequestDateToday()" style="white-space:nowrap;">Today</button>
+                </div>
+              </div>
+              <div><label class="form-label">Start Time</label><input class="form-control" type="time" id="cr-time-start" /></div>
+            </div>
+            <div class="form-row">
+              <div><label class="form-label">End Date</label><input class="form-control" type="date" id="cr-date-end" /></div>
+              <div><label class="form-label">End Time</label><input class="form-control" type="time" id="cr-time-end" /></div>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Location *</label>
+              <input class="form-control" type="text" id="cr-location" placeholder="e.g., Cedars, North Lebanon" />
+            </div>
+
+            <div class="form-section-label">Participants</div>
+            <div class="form-row">
+              <div><label class="form-label">Leaders</label><input class="form-control" type="number" id="cr-leaders-count" placeholder="0" min="0" /></div>
+              <div><label class="form-label">Members / Scouts</label><input class="form-control" type="number" id="cr-members-count" placeholder="0" min="0" /></div>
+              <div><label class="form-label">Guests</label><input class="form-control" type="number" id="cr-guests-count" placeholder="0" min="0" /></div>
+            </div>
+
+            <div class="form-section-label">Planning</div>
+            <div class="form-group">
+              <label class="form-label">Objectives & Description</label>
+              <textarea class="form-control" id="cr-desc" rows="3" placeholder="What are the goals of this activity? What will participants do?"></textarea>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Materials & Equipment</label>
+              <textarea class="form-control" id="cr-materials" rows="2" placeholder="List any equipment, supplies, or materials needed…"></textarea>
+            </div>
+            <div class="form-group">
+              <label class="form-label" style="display:flex;align-items:center;gap:0.5rem;cursor:pointer;">
+                <input type="checkbox" id="cr-transport" onchange="toggleTransportDetails()" />
+                Transportation required
+              </label>
+            </div>
+            <div id="cr-transport-details-group" style="display:none;" class="form-group">
+              <label class="form-label">Transport Details</label>
+              <textarea class="form-control" id="cr-transport-details" rows="2" placeholder="Describe transport arrangements…"></textarea>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Estimated Budget</label>
+              <input class="form-control" type="text" id="cr-budget" placeholder="e.g., 500,000 LBP" />
+            </div>
+
+            <div class="form-section-label">Notes & Approval</div>
+            <div class="form-group">
+              <label class="form-label">Notes for Approver</label>
+              <textarea class="form-control" id="cr-notes" rows="2" placeholder="Any additional context for the reviewer…"></textarea>
+            </div>
             <div class="form-group">
               <label class="form-label">Required Approval Level *</label>
               <select class="form-control" id="cr-approval-level">
@@ -219,7 +286,6 @@
                 <option value="ec">EC Level (National)</option>
               </select>
             </div>
-            <div class="form-group"><label class="form-label">Notes</label><textarea class="form-control" id="cr-notes" rows="2" placeholder="Additional notes…"></textarea></div>
             <div style="display:flex;gap:0.75rem;">
               <button class="btn btn-primary" onclick="submitCommsRequest()">📤 Submit Request</button>
               <button class="btn btn-secondary" onclick="clearCommsRequestForm()">Clear</button>
@@ -409,10 +475,28 @@
     <div class="modal-body" id="report-detail-body"></div>
   </div>
 </div>
+
+<!-- Request detail modal -->
+<div class="modal-overlay" id="request-detail-modal">
+  <div class="modal" style="max-width:740px;max-height:92vh;overflow-y:auto;">
+    <div class="modal-header no-print" style="position:sticky;top:0;background:var(--surface);z-index:1;">
+      <span class="modal-title">Event Request</span>
+      <div style="display:flex;gap:0.5rem;align-items:center;">
+        <button class="btn btn-sm btn-secondary" onclick="printRequest()">🖨️ Print / Save as PDF</button>
+        <button class="modal-close" onclick="closeRequestDetail()">✕</button>
+      </div>
+    </div>
+    <div class="modal-body" id="request-detail-body"></div>
+  </div>
+</div>
+
 <div id="report-print-area"></div>
+<div id="request-print-area"></div>
 
 <script src="scripts/district.js"></script>
 <script src="scripts/report-detail.js"></script>
+<script src="scripts/request-detail.js"></script>
 <script src="scripts/shared-report-form.js"></script>
+<script src="scripts/shared-request-form.js"></script>
 </body>
 </html>
