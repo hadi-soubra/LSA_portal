@@ -405,8 +405,30 @@ def migrate_reports_v2():
     conn.close()
 
 
+def migrate_events_v2():
+    """Add structured fields to event_requests table (idempotent)."""
+    conn = sqlite3.connect(DB_PATH)
+    new_cols = [
+        ('activity_type',     'TEXT'),
+        ('start_time',        'TEXT'),
+        ('end_time',          'TEXT'),
+        ('leaders_count',     'INTEGER'),
+        ('members_count',     'INTEGER'),
+        ('guests_count',      'INTEGER'),
+        ('transport_needed',  'INTEGER DEFAULT 0'),
+        ('transport_details', 'TEXT'),
+        ('budget_estimated',  'TEXT'),
+    ]
+    for col, col_type in new_cols:
+        if not _column_exists(conn, 'event_requests', col):
+            conn.execute(f'ALTER TABLE event_requests ADD COLUMN {col} {col_type}')
+    conn.commit()
+    conn.close()
+
+
 if __name__ == '__main__':
     init_db()
     migrate_db()
     migrate_identity_split()
     migrate_reports_v2()
+    migrate_events_v2()

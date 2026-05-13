@@ -13,7 +13,7 @@ import jwt
 from flask import Flask, g, jsonify, request, send_from_directory
 from flask_cors import CORS
 
-from db import get_db_path, hash_password, init_db, migrate_db, migrate_identity_split, migrate_reports_v2
+from db import get_db_path, hash_password, init_db, migrate_db, migrate_identity_split, migrate_reports_v2, migrate_events_v2
 
 # ── App setup ─────────────────────────────────────────────────────────────────
 
@@ -927,17 +927,59 @@ def submit_event():
     db = get_db()
     db.execute(
         '''INSERT INTO event_requests
-           (title,description,location,start_date,end_date,participants,
-            materials,notes,submitted_by,required_approval_level,current_level,status)
-           VALUES (?,?,?,?,?,?,?,?,?,?,?,?)''',
+           (title,description,location,start_date,end_date,
+            materials,notes,submitted_by,required_approval_level,current_level,status,
+            activity_type,start_time,end_time,
+            leaders_count,members_count,guests_count,
+            transport_needed,transport_details,budget_estimated)
+           VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)''',
         (data['title'], data.get('description'), data.get('location'),
-         data.get('start_date'), data.get('end_date'), data.get('participants'),
+         data.get('start_date'), data.get('end_date'),
          data.get('materials'), data.get('notes'),
-         actor['id'], data['required_approval_level'], start_level, 'pending'))
+         actor['id'], data['required_approval_level'], start_level, 'pending',
+         data.get('activity_type'), data.get('start_time'), data.get('end_time'),
+         data.get('leaders_count'), data.get('members_count'), data.get('guests_count'),
+         1 if data.get('transport_needed') else 0,
+         data.get('transport_details'), data.get('budget_estimated')))
     db.commit()
     new_id = db.execute('SELECT last_insert_rowid()').fetchone()[0]
     return jsonify(dict(db.execute('SELECT * FROM event_requests WHERE id=?',
                                    (new_id,)).fetchone())), 201
+
+
+@app.route('/api/events/<int:event_id>', methods=['GET'])
+@require_auth
+def get_event(event_id):
+    actor = g.user
+    db = get_db()
+    row = db.execute('''
+        SELECT r.*,
+               u.name       AS submitter_name,
+               u.color      AS submitter_color,
+               u.role_title AS submitter_role_title,
+               g.name       AS submitter_group,
+               d.name       AS submitter_district
+        FROM event_requests r
+        JOIN users u ON r.submitted_by = u.id
+        LEFT JOIN groups    g ON u.group_id    = g.id
+        LEFT JOIN districts d ON u.district_id = d.id
+        WHERE r.id = ?
+    ''', (event_id,)).fetchone()
+    if not row:
+        return jsonify({'error': 'Not found'}), 404
+    evt = dict(row)
+    own      = actor['id'] == evt['submitted_by']
+    is_admin = actor['dashboard'] == 'admin'
+    is_group_reviewer = (actor['dashboard'] == 'leader' and not actor.get('color')
+                         and actor['level'] in ('group', 'group_admin'))
+    if not (own or is_admin or is_group_reviewer):
+        return jsonify({'error': 'Forbidden'}), 403
+    if is_group_reviewer and not own:
+        submitter = db.execute('SELECT group_id FROM users WHERE id=?',
+                               (evt['submitted_by'],)).fetchone()
+        if not submitter or submitter['group_id'] != actor['group_id']:
+            return jsonify({'error': 'Forbidden'}), 403
+    return jsonify(evt)
 
 
 @app.route('/api/events/<int:event_id>/approve', methods=['PUT'])
@@ -1507,4 +1549,5 @@ if __name__ == '__main__':
     migrate_db()
     migrate_identity_split()
     migrate_reports_v2()
+    migrate_events_v2()
     app.run(debug=True, port=5000)
