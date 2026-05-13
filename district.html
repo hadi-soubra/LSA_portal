@@ -233,21 +233,73 @@
       <!-- ===== SEND REPORT ===== -->
       <div class="section" id="sec-send-report">
         <div class="card" style="margin-bottom:1.5rem;">
-          <div class="card-header"><span class="card-title">📊 New Report</span></div>
+          <div class="card-header"><span class="card-title">📊 New Activity Report</span></div>
           <div class="card-body">
             <div id="crpt-alert"></div>
             <div class="form-group">
-              <label class="form-label">Activity (Approved Request) *</label>
-              <select class="form-control" id="crpt-request"><option value="">— Select an approved activity —</option></select>
+              <label class="form-label">Linked Activity (Approved Request) *</label>
+              <select class="form-control" id="crpt-request" onchange="onReportRequestChange()">
+                <option value="">— Select an approved activity —</option>
+              </select>
               <p class="text-muted text-sm" id="crpt-no-requests" style="display:none;margin-top:0.4rem;">No approved activities without a report yet.</p>
             </div>
-            <div class="form-group"><label class="form-label">Report Title *</label><input class="form-control" type="text" id="crpt-title" placeholder="e.g., District Monthly Report – April 2025" /></div>
-            <div class="form-group"><label class="form-label">Report Body *</label><textarea class="form-control" id="crpt-body" rows="8" placeholder="Write your full report here…"></textarea></div>
+            <div id="crpt-activity-info" style="display:none;background:var(--bg);border:1px solid var(--border);border-radius:var(--radius);padding:0.75rem 1rem;margin-bottom:1rem;font-size:0.88rem;color:var(--text-secondary);"></div>
+
+            <div class="form-group">
+              <label class="form-label">Report Title *</label>
+              <input class="form-control" type="text" id="crpt-title" placeholder="e.g., District Monthly Report – April 2025" />
+            </div>
+
+            <div class="form-section-label">Participation</div>
+            <div class="form-row">
+              <div><label class="form-label">Leaders Present</label><input class="form-control" type="number" id="crpt-leaders-count" min="0" placeholder="0" /></div>
+              <div><label class="form-label">Members Present</label><input class="form-control" type="number" id="crpt-members-count" min="0" placeholder="0" /></div>
+              <div><label class="form-label">Guests <span class="text-muted" style="font-weight:400;">(optional)</span></label><input class="form-control" type="number" id="crpt-guests-count" min="0" placeholder="0" /></div>
+            </div>
+
+            <div class="form-section-label">Activity Narrative</div>
+            <div class="form-group">
+              <label class="form-label">Objectives</label>
+              <textarea class="form-control" id="crpt-objectives" rows="3" placeholder="What was planned / what were the goals?"></textarea>
+            </div>
+            <div class="form-group">
+              <label class="form-label">What Happened *</label>
+              <textarea class="form-control" id="crpt-body" rows="6" placeholder="Describe what took place…"></textarea>
+            </div>
+
+            <div class="form-section-label">Outcomes & Challenges</div>
+            <div class="form-group"><label class="form-label">Outcomes / Achievements</label><textarea class="form-control" id="crpt-outcomes" rows="3" placeholder="Skills developed, goals met, highlights…"></textarea></div>
+            <div class="form-group"><label class="form-label">Challenges Encountered</label><textarea class="form-control" id="crpt-challenges" rows="3" placeholder="Any difficulties or issues faced…"></textarea></div>
+
+            <div class="form-section-label">Safety</div>
+            <div class="form-group">
+              <label style="display:flex;align-items:center;gap:0.5rem;cursor:pointer;font-weight:500;">
+                <input type="checkbox" id="crpt-safety-incident" onchange="toggleSafetyDetails()" />
+                A safety incident occurred during this activity
+              </label>
+            </div>
+            <div class="form-group" id="crpt-safety-details-group" style="display:none;">
+              <label class="form-label">Incident Details</label>
+              <textarea class="form-control" id="crpt-safety-details" rows="3" placeholder="Describe what happened and actions taken…"></textarea>
+            </div>
+
+            <div class="form-section-label">Budget <span class="text-muted" style="font-weight:400;font-size:0.85rem;">(optional)</span></div>
+            <div class="form-row">
+              <div><label class="form-label">Planned Budget</label><input class="form-control" type="text" id="crpt-budget-planned" placeholder="e.g. 500,000 LBP" /></div>
+              <div><label class="form-label">Actual Spending</label><input class="form-control" type="text" id="crpt-budget-actual" placeholder="e.g. 480,000 LBP" /></div>
+            </div>
+
+            <div class="form-section-label">Recommendations</div>
+            <div class="form-group">
+              <label class="form-label">Notes for next time</label>
+              <textarea class="form-control" id="crpt-recommendations" rows="3" placeholder="Suggestions to improve future editions…"></textarea>
+            </div>
+
             <div class="form-group">
               <label class="form-label">Required Approval Level *</label>
               <select class="form-control" id="crpt-approval-level">
                 <option value="gc">GC Level</option>
-                <option value="ec">EC Level (National)</option>
+                <option value="ec">EC (National)</option>
               </select>
             </div>
             <div style="display:flex;gap:0.75rem;">
@@ -361,5 +413,6 @@
 
 <script src="scripts/district.js"></script>
 <script src="scripts/report-detail.js"></script>
+<script src="scripts/shared-report-form.js"></script>
 </body>
 </html>

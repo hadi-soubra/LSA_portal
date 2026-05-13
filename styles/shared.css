@@ -1071,6 +1071,18 @@ tbody tr:hover td { background: var(--surface-2); }
   .stats-grid { grid-template-columns: 1fr; }
 }
 
+/* ── Form section labels (shared: report form used across dashboards) ── */
+.form-section-label {
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  border-left: 3px solid #000;
+  padding-left: 0.5rem;
+  margin: 1.5rem 0 0.75rem;
+}
+
 /* ============================================================
    REPORT DOCUMENT
    ============================================================ */

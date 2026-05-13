@@ -306,16 +306,6 @@ async function loadComms() {
   renderHomePendingEvents(); renderHomePendingReports();
 }
 
-function populateReportRequestDropdown() {
-  const sel   = document.getElementById('crpt-request');
-  const noMsg = document.getElementById('crpt-no-requests');
-  if (!sel) return;
-  sel.innerHTML = '<option value="">— Select an approved activity —</option>' +
-    eligibleRequests.map(r =>
-      `<option value="${r.id}">${escHtml(r.title)}${r.start_date ? ' (' + r.start_date + ')' : ''}</option>`
-    ).join('');
-  if (noMsg) noMsg.style.display = eligibleRequests.length ? 'none' : '';
-}
 
 function renderSentRequests() {
   const el = document.getElementById('sent-requests-list');
@@ -544,39 +534,6 @@ function clearCommsRequestForm() {
   document.getElementById('cr-approval-level').value = 'ec';
 }
 
-async function submitCommsReport() {
-  const title   = document.getElementById('crpt-title').value.trim();
-  const body    = document.getElementById('crpt-body').value.trim();
-  const reqId   = parseInt(document.getElementById('crpt-request').value) || null;
-  const level   = document.getElementById('crpt-approval-level').value;
-  const alertEl = document.getElementById('crpt-alert');
-
-  if (!title || !body) {
-    alertEl.innerHTML = '<div class="alert alert-danger"><span class="alert-icon">❌</span> Title and body are required.</div>';
-    return;
-  }
-
-  const res = await api('POST', '/api/reports', {
-    title, body,
-    request_id: reqId,
-    required_approval_level: level,
-  });
-  if (res && res.id) {
-    alertEl.innerHTML = '<div class="alert alert-success"><span class="alert-icon">✅</span> Report submitted to EC.</div>';
-    clearCommsReportForm();
-    await loadComms();
-  } else {
-    alertEl.innerHTML = `<div class="alert alert-danger"><span class="alert-icon">❌</span> ${res?.error || 'Error submitting.'}</div>`;
-  }
-  setTimeout(() => alertEl.innerHTML = '', 4000);
-}
-
-function clearCommsReportForm() {
-  document.getElementById('crpt-title').value = '';
-  document.getElementById('crpt-body').value = '';
-  document.getElementById('crpt-request').value = '';
-  document.getElementById('crpt-approval-level').value = 'ec';
-}
 
 const SECTION_TITLES = {
   home:               ['Dashboard',          'GC overview'],
