@@ -3,7 +3,10 @@
 
 let _reportPrintTitle = 'Activity Report';
 
-async function openReportDetail(reportId) {
+if (!window.__reviewApproveReport) window.__reviewApproveReport = () => {};
+if (!window.__reviewRejectReport)  window.__reviewRejectReport  = () => {};
+
+async function openReportDetail(reportId, reviewMode = false) {
   const modal = document.getElementById('report-detail-modal');
   const body  = document.getElementById('report-detail-body');
   body.innerHTML = '<div class="text-muted text-sm" style="padding:2rem;">Loading…</div>';
@@ -18,6 +21,12 @@ async function openReportDetail(reportId) {
   const html = renderReportDetailHTML(r);
   body.innerHTML = html;
   document.getElementById('report-print-area').innerHTML = html;
+  if (reviewMode) {
+    body.innerHTML += `<div class="no-print" style="padding:1.5rem 2rem;border-top:1px solid var(--border);display:flex;gap:1rem;justify-content:flex-end;margin-top:1rem;">
+      <button class="btn btn-success" onclick="__reviewApproveReport(${reportId})">✅ Approve</button>
+      <button class="btn btn-danger"  onclick="__reviewRejectReport(${reportId})">❌ Reject</button>
+    </div>`;
+  }
 }
 
 function closeReportDetail() {

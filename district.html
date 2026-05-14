@@ -119,7 +119,9 @@
       <button class="nav-sub-item" onclick="showSection('inbox-requests', this)">
         Requests <span class="nav-badge" id="inbox-req-badge" style="display:none;">0</span>
       </button>
-      <button class="nav-sub-item" onclick="showSection('inbox-reports', this)">Reports</button>
+      <button class="nav-sub-item" onclick="showSection('inbox-reports', this)">
+        Reports <span class="nav-badge" id="inbox-rpt-badge" style="display:none;">0</span>
+      </button>
 
       <span class="nav-group-label">Tracker</span>
       <button class="nav-sub-item" onclick="showSection('tracker-requests', this)">Requests</button>
@@ -399,7 +401,7 @@
       <!-- ===== INBOX — REPORTS ===== -->
       <div class="section" id="sec-inbox-reports">
         <div class="tab-bar">
-          <button class="tab-btn active" onclick="switchTab(this, 'tab-inbox-rpt-pending')">⏳ Pending</button>
+          <button class="tab-btn active" onclick="switchTab(this, 'tab-inbox-rpt-pending')">⏳ Pending <span class="nav-badge" id="inbox-rpt-pending-badge" style="display:none;position:static;margin-left:4px;"></span></button>
           <button class="tab-btn" onclick="switchTab(this, 'tab-inbox-rpt-history')">📋 History</button>
         </div>
         <div class="tab-pane active" id="tab-inbox-rpt-pending">

@@ -3,7 +3,10 @@
 
 let _requestPrintTitle = 'Event Request';
 
-async function openRequestDetail(eventId) {
+if (!window.__reviewApproveRequest) window.__reviewApproveRequest = () => {};
+if (!window.__reviewRejectRequest)  window.__reviewRejectRequest  = () => {};
+
+async function openRequestDetail(eventId, reviewMode = false) {
   const modal = document.getElementById('request-detail-modal');
   const body  = document.getElementById('request-detail-body');
   body.innerHTML = '<div class="text-muted text-sm" style="padding:2rem;">Loading…</div>';
@@ -18,6 +21,12 @@ async function openRequestDetail(eventId) {
   const html = renderRequestDetailHTML(r);
   body.innerHTML = html;
   document.getElementById('request-print-area').innerHTML = html;
+  if (reviewMode) {
+    body.innerHTML += `<div class="no-print" style="padding:1.5rem 2rem;border-top:1px solid var(--border);display:flex;gap:1rem;justify-content:flex-end;margin-top:1rem;">
+      <button class="btn btn-success" onclick="__reviewApproveRequest(${eventId})">✅ Approve</button>
+      <button class="btn btn-danger"  onclick="__reviewRejectRequest(${eventId})">❌ Reject</button>
+    </div>`;
+  }
 }
 
 function closeRequestDetail() {

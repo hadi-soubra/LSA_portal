@@ -93,14 +93,13 @@ async function loadComms() {
   eligibleRequests = Array.isArray(eligible) ? eligible : [];
   populateReportRequestDropdown();
 
-  if (isNoColorGroupLeader && inboxRequests.length > 0) {
-    const b = document.getElementById('inbox-req-badge');
-    b.textContent = inboxRequests.length;
-    b.style.display = '';
-    document.getElementById('hdr-badge-dot').style.display = '';
-  }
-  if (isNoColorGroupLeader && inboxReports.length > 0) {
-    document.getElementById('hdr-badge-dot').style.display = '';
+  if (isNoColorGroupLeader) {
+    const reqBadge = document.getElementById('inbox-req-badge');
+    if (reqBadge) { reqBadge.textContent = inboxRequests.length; reqBadge.style.display = inboxRequests.length > 0 ? '' : 'none'; }
+    const rptBadge = document.getElementById('inbox-rpt-badge');
+    if (rptBadge) { rptBadge.textContent = inboxReports.length; rptBadge.style.display = inboxReports.length > 0 ? '' : 'none'; }
+    const dot = document.getElementById('hdr-badge-dot');
+    if (dot) { dot.style.display = (inboxRequests.length + inboxReports.length) > 0 ? '' : 'none'; }
   }
 
   renderSentRequests();
@@ -167,30 +166,26 @@ function renderInboxRequestsPending() {
   }
   const b = document.getElementById('inbox-pending-badge');
   if (b) { b.textContent = inboxRequests.length; b.style.display = ''; }
-  el.innerHTML = inboxRequests.map(e => `
+  el.innerHTML = inboxRequests.map(e => {
+    const role = e.submitter_role_title ? escHtml(e.submitter_role_title) : '';
+    const unit = e.submitter_color ? (e.submitter_color.charAt(0).toUpperCase() + e.submitter_color.slice(1) + ' Unit') : '';
+    const meta = [role, unit].filter(Boolean).join(' · ');
+    const type = e.activity_type ? escHtml(e.activity_type) + ' · ' : '';
+    return `
     <div class="request-card" id="inbox-card-${e.id}">
       <div class="request-card-header">
         <div style="flex:1;min-width:0;">
-          <h4>${escHtml(e.title)}</h4>
-          <div class="meta">${e.submitter_name ? escHtml(e.submitter_name) + ' · ' : ''}${fmtDate(e.created_at)}</div>
+          <h4>${escHtml(e.submitter_name || '—')}</h4>
+          ${meta ? `<div class="meta">${meta}</div>` : ''}
+          <div class="text-sm" style="margin-top:0.2rem;color:var(--text-secondary);">${type}${escHtml(e.title)}</div>
         </div>
         <span class="badge badge-warning">Awaiting review</span>
       </div>
-      ${e.description ? `<div class="text-sm" style="color:var(--text-secondary);">${escHtml(e.description)}</div>` : ''}
-      <div class="text-sm" style="display:flex;gap:1.5rem;flex-wrap:wrap;">
-        ${e.location ? `<span>📍 ${escHtml(e.location)}</span>` : ''}
-        ${e.start_date ? `<span>📅 ${e.start_date}${e.end_date ? ' → ' + e.end_date : ''}</span>` : ''}
-        ${e.participants ? `<span>👥 ${e.participants}</span>` : ''}
+      <div style="margin-top:0.75rem;">
+        <button class="btn btn-secondary btn-sm" onclick="openRequestDetail(${e.id}, true)">📋 View Request</button>
       </div>
-      <div class="text-sm text-muted">Approval needed: <strong>${e.required_approval_level.toUpperCase()}</strong></div>
-      ${e.notes ? `<div class="text-sm" style="color:var(--text-secondary);">Notes: ${escHtml(e.notes)}</div>` : ''}
-      <div id="inbox-alert-${e.id}"></div>
-      <div class="flex gap-2" style="margin-top:0.5rem;">
-        <button class="btn btn-secondary btn-sm" onclick="openRequestDetail(${e.id})">📋 View Request</button>
-        <button class="btn btn-success btn-sm" onclick="approveEvent(${e.id})">✅ Approve</button>
-        <button class="btn btn-danger btn-sm" onclick="rejectEvent(${e.id})">❌ Reject</button>
-      </div>
-    </div>`).join('');
+    </div>`;
+  }).join('');
 }
 
 function renderInboxRequestsHistory() {
@@ -219,27 +214,32 @@ function renderInboxRequestsHistory() {
 function renderInboxReportsPending() {
   const el = document.getElementById('inbox-rpt-pending-list');
   if (!el) return;
+  const b = document.getElementById('inbox-rpt-pending-badge');
   if (!inboxReports.length) {
     el.innerHTML = '<div class="card"><div class="card-body text-muted text-sm">No pending reports.</div></div>';
+    if (b) b.style.display = 'none';
     return;
   }
-  el.innerHTML = inboxReports.map(r => `
+  if (b) { b.textContent = inboxReports.length; b.style.display = ''; }
+  el.innerHTML = inboxReports.map(r => {
+    const role = r.submitter_role_title ? escHtml(r.submitter_role_title) : '';
+    const unit = r.submitter_color ? (r.submitter_color.charAt(0).toUpperCase() + r.submitter_color.slice(1) + ' Unit') : '';
+    const meta = [role, unit].filter(Boolean).join(' · ');
+    return `
     <div class="request-card" id="inbox-rpt-card-${r.id}">
       <div class="request-card-header">
         <div style="flex:1;min-width:0;">
-          <h4>${escHtml(r.title)}</h4>
-          <div class="meta">${r.submitter_name ? escHtml(r.submitter_name) + ' · ' : ''}${fmtDate(r.created_at)}</div>
+          <h4>${escHtml(r.submitter_name || '—')}</h4>
+          ${meta ? `<div class="meta">${meta}</div>` : ''}
+          <div class="text-sm" style="margin-top:0.2rem;color:var(--text-secondary);">Activity Report · ${escHtml(r.title)}</div>
         </div>
         <span class="badge badge-warning">Awaiting review</span>
       </div>
-      <div class="text-sm text-muted">Approval needed: <strong>${r.required_approval_level.toUpperCase()}</strong></div>
-      <div id="inbox-rpt-alert-${r.id}"></div>
-      <div class="flex gap-2" style="margin-top:0.5rem;">
-        <button class="btn btn-secondary btn-sm" onclick="openReportDetail(${r.id})">📄 View Full Report</button>
-        <button class="btn btn-success btn-sm" onclick="approveReport(${r.id})">✅ Approve</button>
-        <button class="btn btn-danger btn-sm" onclick="rejectReport(${r.id})">❌ Reject</button>
+      <div style="margin-top:0.75rem;">
+        <button class="btn btn-secondary btn-sm" onclick="openReportDetail(${r.id}, true)">📄 View Report</button>
       </div>
-    </div>`).join('');
+    </div>`;
+  }).join('');
 }
 
 function renderInboxReportsHistory() {
@@ -318,33 +318,51 @@ function setTrackerFilter(type, filter, btn) {
 
 // ── Inbox approvals ──────────────────────────────────────────────────────────
 
-async function approveEvent(id) {
-  const res = await api('PUT', `/api/events/${id}/approve`, { note: '' });
-  if (res && res.id) { toast('Request approved.', 'success'); await loadComms(); }
-  else { const el = document.getElementById(`inbox-alert-${id}`); if (el) el.innerHTML = `<div class="alert alert-danger"><span class="alert-icon">❌</span> ${res?.error || 'Failed.'}</div>`; }
+let _leaderPendingAction = null;
+
+function promptAction(type, id) {
+  _leaderPendingAction = { type, id };
+  const titles = { approve: 'Approve Request', reject: 'Reject Request', approve_report: 'Approve Report', reject_report: 'Reject Report' };
+  document.getElementById('action-modal-title').textContent = titles[type] || 'Confirm';
+  document.getElementById('action-note').value = '';
+  const btn = document.getElementById('action-confirm-btn');
+  btn.className = `btn ${type === 'reject' || type === 'reject_report' ? 'btn-danger' : 'btn-primary'}`;
+  btn.textContent = titles[type] || (type.charAt(0).toUpperCase() + type.slice(1));
+  document.getElementById('action-modal').classList.add('open');
 }
 
-async function rejectEvent(id) {
-  const note = prompt('Reason for rejection (optional):') ?? null;
-  if (note === null) return;
-  const res = await api('PUT', `/api/events/${id}/reject`, { note: note.trim() || null });
-  if (res && res.id) { toast('Request rejected.', 'danger'); await loadComms(); }
-  else { const el = document.getElementById(`inbox-alert-${id}`); if (el) el.innerHTML = `<div class="alert alert-danger"><span class="alert-icon">❌</span> ${res?.error || 'Failed.'}</div>`; }
+function closeActionModal() {
+  document.getElementById('action-modal').classList.remove('open');
+  _leaderPendingAction = null;
 }
 
-async function approveReport(id) {
-  const res = await api('PUT', `/api/reports/${id}/approve`, { note: '' });
-  if (res && res.id) { toast('Report approved.', 'success'); await loadComms(); }
-  else { const el = document.getElementById(`inbox-rpt-alert-${id}`); if (el) el.innerHTML = `<div class="alert alert-danger"><span class="alert-icon">❌</span> ${res?.error || 'Failed.'}</div>`; }
+async function executeAction() {
+  if (!_leaderPendingAction) return;
+  const { type, id } = _leaderPendingAction;
+  const note = document.getElementById('action-note').value.trim();
+  closeActionModal();
+  let res;
+  if (type === 'approve') {
+    res = await api('PUT', `/api/events/${id}/approve`, { note });
+    if (res && !res.error) toast(res.status === 'approved' ? 'Request approved.' : 'Request forwarded.', 'success');
+  } else if (type === 'reject') {
+    res = await api('PUT', `/api/events/${id}/reject`, { note });
+    if (res && !res.error) toast('Request rejected.', 'danger');
+  } else if (type === 'approve_report') {
+    res = await api('PUT', `/api/reports/${id}/approve`, { note });
+    if (res && !res.error) toast(res.status === 'approved' ? 'Report approved.' : 'Report forwarded.', 'success');
+  } else if (type === 'reject_report') {
+    res = await api('PUT', `/api/reports/${id}/reject`, { note });
+    if (res && !res.error) toast('Report rejected.', 'danger');
+  }
+  if (res && res.error) { toast(res.error, 'danger'); return; }
+  await loadComms();
 }
 
-async function rejectReport(id) {
-  const note = prompt('Reason for rejection (optional):') ?? null;
-  if (note === null) return;
-  const res = await api('PUT', `/api/reports/${id}/reject`, { note: note.trim() || null });
-  if (res && res.message) { toast('Report rejected.', 'danger'); await loadComms(); }
-  else { const el = document.getElementById(`inbox-rpt-alert-${id}`); if (el) el.innerHTML = `<div class="alert alert-danger"><span class="alert-icon">❌</span> ${res?.error || 'Failed.'}</div>`; }
-}
+window.__reviewApproveRequest = id => { closeRequestDetail(); promptAction('approve', id); };
+window.__reviewRejectRequest  = id => { closeRequestDetail(); promptAction('reject', id); };
+window.__reviewApproveReport  = id => { closeReportDetail(); promptAction('approve_report', id); };
+window.__reviewRejectReport   = id => { closeReportDetail(); promptAction('reject_report', id); };
 
 // ── Group user management (group leaders only) ────────────────────────────────
 let allGroupUsers = [];

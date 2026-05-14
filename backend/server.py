@@ -307,7 +307,8 @@ def _events_in_scope(actor: dict, db) -> list[dict]:
     # Leader-dashboard users see their own submissions
     if actor['dashboard'] == 'leader':
         own = db.execute(
-            '''SELECT r.*, u.name AS submitter_name, u.color AS submitter_color
+            '''SELECT r.*, u.name AS submitter_name, u.color AS submitter_color,
+                      u.role_title AS submitter_role_title
                FROM event_requests r
                JOIN users u ON r.submitted_by = u.id
                WHERE r.submitted_by = ?
@@ -318,7 +319,8 @@ def _events_in_scope(actor: dict, db) -> list[dict]:
         # No-color group leaders also see requests pending their review
         if actor['level'] == 'group_admin' and not actor['color']:
             review = db.execute(
-                '''SELECT r.*, u.name AS submitter_name, u.color AS submitter_color
+                '''SELECT r.*, u.name AS submitter_name, u.color AS submitter_color,
+                          u.role_title AS submitter_role_title
                    FROM event_requests r
                    JOIN users u ON r.submitted_by = u.id
                    WHERE r.current_level = 'group_admin' AND r.status = 'pending'
@@ -331,7 +333,8 @@ def _events_in_scope(actor: dict, db) -> list[dict]:
                 result.append(d)
         elif actor['level'] == 'group' and not actor['color']:
             review = db.execute(
-                '''SELECT r.*, u.name AS submitter_name, u.color AS submitter_color
+                '''SELECT r.*, u.name AS submitter_name, u.color AS submitter_color,
+                          u.role_title AS submitter_role_title
                    FROM event_requests r
                    JOIN users u ON r.submitted_by = u.id
                    WHERE r.current_level = 'group' AND r.status = 'pending'
@@ -349,7 +352,8 @@ def _events_in_scope(actor: dict, db) -> list[dict]:
     review_rows = []
     if lvl == 'group':
         review_rows = db.execute(
-            '''SELECT r.*, u.name AS submitter_name, u.color AS submitter_color
+            '''SELECT r.*, u.name AS submitter_name, u.color AS submitter_color,
+                      u.role_title AS submitter_role_title
                FROM event_requests r
                JOIN users u ON r.submitted_by = u.id
                WHERE r.current_level = 'group' AND u.group_id = ?
@@ -358,7 +362,8 @@ def _events_in_scope(actor: dict, db) -> list[dict]:
 
     elif lvl == 'district':
         review_rows = db.execute(
-            '''SELECT r.*, u.name AS submitter_name, u.color AS submitter_color
+            '''SELECT r.*, u.name AS submitter_name, u.color AS submitter_color,
+                      u.role_title AS submitter_role_title
                FROM event_requests r
                JOIN users u ON r.submitted_by = u.id
                WHERE r.current_level = 'district' AND u.district_id = ?
@@ -370,7 +375,8 @@ def _events_in_scope(actor: dict, db) -> list[dict]:
 
     elif lvl == 'gc':
         review_rows = db.execute(
-            '''SELECT r.*, u.name AS submitter_name, u.color AS submitter_color
+            '''SELECT r.*, u.name AS submitter_name, u.color AS submitter_color,
+                      u.role_title AS submitter_role_title
                FROM event_requests r
                JOIN users u ON r.submitted_by = u.id
                WHERE r.current_level = 'gc'
@@ -381,7 +387,8 @@ def _events_in_scope(actor: dict, db) -> list[dict]:
 
     elif lvl == 'ec':
         review_rows = db.execute(
-            '''SELECT r.*, u.name AS submitter_name, u.color AS submitter_color
+            '''SELECT r.*, u.name AS submitter_name, u.color AS submitter_color,
+                      u.role_title AS submitter_role_title
                FROM event_requests r
                JOIN users u ON r.submitted_by = u.id
                WHERE r.current_level = 'ec'
@@ -393,7 +400,8 @@ def _events_in_scope(actor: dict, db) -> list[dict]:
     if lvl in ('district', 'gc'):
         review_ids = {r['id'] for r in result}
         own = db.execute(
-            '''SELECT r.*, u.name AS submitter_name, u.color AS submitter_color
+            '''SELECT r.*, u.name AS submitter_name, u.color AS submitter_color,
+                      u.role_title AS submitter_role_title
                FROM event_requests r
                JOIN users u ON r.submitted_by = u.id
                WHERE r.submitted_by = ?
@@ -408,9 +416,13 @@ def _events_in_scope(actor: dict, db) -> list[dict]:
 
 _RPT_SELECT = '''
     SELECT r.*,
-           u.name  AS submitter_name,
-           u.color AS submitter_color,
-           e.title AS request_title,
+           u.name       AS submitter_name,
+           u.color      AS submitter_color,
+           u.role_title AS submitter_role_title,
+           e.title      AS request_title,
+           e.location   AS request_location,
+           e.start_date AS request_start_date,
+           e.end_date   AS request_end_date,
            g.name  AS submitter_group,
            d.name  AS submitter_district
     FROM reports r

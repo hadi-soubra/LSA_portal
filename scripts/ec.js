@@ -265,6 +265,9 @@ async function loadComms() {
     const el = document.getElementById(id);
     if (el) { el.textContent = pending; el.style.display = pending > 0 ? '' : 'none'; }
   });
+  const pendingRpt = inboxReports.length;
+  const rptBadge = document.getElementById('inbox-rpt-badge');
+  if (rptBadge) { rptBadge.textContent = pendingRpt; rptBadge.style.display = pendingRpt > 0 ? '' : 'none'; }
 
   renderInboxReqPending(); renderInboxReqHistory();
   renderInboxRptPending(); renderInboxRptHistory();
@@ -279,29 +282,26 @@ function renderInboxReqPending() {
     if (b) b.style.display = 'none'; return;
   }
   if (b) { b.textContent = inboxRequests.length; b.style.display = ''; }
-  el.innerHTML = inboxRequests.map(e => `
+  el.innerHTML = inboxRequests.map(e => {
+    const role = e.submitter_role_title ? escHtml(e.submitter_role_title) : '';
+    const unit = e.submitter_color ? (e.submitter_color.charAt(0).toUpperCase() + e.submitter_color.slice(1) + ' Unit') : '';
+    const meta = [role, unit].filter(Boolean).join(' · ');
+    const type = e.activity_type ? escHtml(e.activity_type) + ' · ' : '';
+    return `
     <div class="request-card" id="inbox-card-${e.id}">
       <div class="request-card-header">
         <div style="flex:1;min-width:0;">
-          <h4>${escHtml(e.title)}</h4>
-          <div class="meta">${escHtml(e.submitter_name || '—')}${e.submitter_district ? ' · ' + escHtml(e.submitter_district) : ''} · ${fmtDate(e.created_at)}</div>
+          <h4>${escHtml(e.submitter_name || '—')}</h4>
+          ${meta ? `<div class="meta">${meta}</div>` : ''}
+          <div class="text-sm" style="margin-top:0.2rem;color:var(--text-secondary);">${type}${escHtml(e.title)}</div>
         </div>
         <span class="badge badge-warning">Pending Final Approval</span>
       </div>
-      ${e.description ? `<div class="text-sm" style="color:var(--text-secondary);">${escHtml(e.description)}</div>` : ''}
-      <div class="text-sm" style="display:flex;gap:1.5rem;flex-wrap:wrap;">
-        ${e.location ? `<span>📍 ${escHtml(e.location)}</span>` : ''}
-        ${e.start_date ? `<span>📅 ${e.start_date}${e.end_date ? ' → ' + e.end_date : ''}</span>` : ''}
-        ${e.participants ? `<span>👥 ${e.participants}</span>` : ''}
+      <div style="margin-top:0.75rem;">
+        <button class="btn btn-secondary btn-sm" onclick="openRequestDetail(${e.id}, true)">📋 View Request</button>
       </div>
-      <div class="text-sm text-muted">Requires: <strong>${e.required_approval_level.toUpperCase()}</strong></div>
-      ${e.notes ? `<div class="text-sm" style="color:var(--text-secondary);">Notes: ${escHtml(e.notes)}</div>` : ''}
-      <div class="flex gap-2" style="margin-top:0.5rem;">
-        <button class="btn btn-secondary btn-sm" onclick="openRequestDetail(${e.id})">📋 View Request</button>
-        <button class="btn btn-success btn-sm" onclick="promptAction('approve', ${e.id})">✅ Final Approve</button>
-        <button class="btn btn-danger btn-sm" onclick="promptAction('reject', ${e.id})">❌ Reject</button>
-      </div>
-    </div>`).join('');
+    </div>`;
+  }).join('');
 }
 
 function renderInboxReqHistory() {
@@ -333,25 +333,37 @@ function filterInboxReqHistory() {
 
 function renderInboxRptPending() {
   const el = document.getElementById('inbox-rpt-pending-list');
-  if (!inboxReports.length) { el.innerHTML = '<div class="card"><div class="card-body text-muted text-sm">No pending reports.</div></div>'; return; }
-  el.innerHTML = inboxReports.map(r => `
-    <div class="card" style="margin-bottom:0;">
-      <div class="card-body">
-        <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:1rem;margin-bottom:0.75rem;">
-          <div>
-            <div class="font-semibold">${escHtml(r.title)}</div>
-            <div class="text-muted text-sm">From: ${escHtml(r.submitter_name || '—')}${r.submitter_district ? ' · ' + escHtml(r.submitter_district) : ''} · ${fmtDate(r.created_at)}</div>
-          </div>
-          <span class="badge ${STATUS_BADGE_RPT[r.status] || 'badge-neutral'}" style="text-transform:capitalize;">${r.status}</span>
+  const b  = document.getElementById('inbox-rpt-pending-badge');
+  if (!inboxReports.length) {
+    el.innerHTML = '<div class="card"><div class="card-body text-muted text-sm">No pending reports.</div></div>';
+    if (b) b.style.display = 'none'; return;
+  }
+  if (b) { b.textContent = inboxReports.length; b.style.display = ''; }
+  el.innerHTML = inboxReports.map(r => {
+    const role = r.submitter_role_title ? escHtml(r.submitter_role_title) : '';
+    const unit = r.submitter_color ? (r.submitter_color.charAt(0).toUpperCase() + r.submitter_color.slice(1) + ' Unit') : '';
+    const meta = [role, unit].filter(Boolean).join(' · ');
+    return `
+    <div class="request-card" id="inbox-rpt-card-${r.id}">
+      <div class="request-card-header">
+        <div style="flex:1;min-width:0;">
+          <h4>${escHtml(r.submitter_name || '—')}</h4>
+          ${meta ? `<div class="meta">${meta}</div>` : ''}
+          <div class="text-sm" style="margin-top:0.2rem;color:var(--text-secondary);">Activity Report · ${escHtml(r.title)}</div>
         </div>
-        <div class="flex gap-2 mt-3">
-          <button class="btn btn-secondary btn-sm" onclick="openReportDetail(${r.id})">📄 View Full Report</button>
-          <button class="btn btn-primary btn-sm" onclick="promptAction('approve_report', ${r.id})">✓ Approve</button>
-          <button class="btn btn-danger btn-sm" onclick="promptAction('reject_report', ${r.id})">✗ Reject</button>
-        </div>
+        <span class="badge badge-warning">Pending Final Approval</span>
       </div>
-    </div>`).join('');
+      <div style="margin-top:0.75rem;">
+        <button class="btn btn-secondary btn-sm" onclick="openReportDetail(${r.id}, true)">📄 View Report</button>
+      </div>
+    </div>`;
+  }).join('');
 }
+
+window.__reviewApproveRequest = id => { closeRequestDetail(); promptAction('approve', id); };
+window.__reviewRejectRequest  = id => { closeRequestDetail(); promptAction('reject', id); };
+window.__reviewApproveReport  = id => { closeReportDetail(); promptAction('approve_report', id); };
+window.__reviewRejectReport   = id => { closeReportDetail(); promptAction('reject_report', id); };
 
 function renderInboxRptHistory() {
   populateDistrictFilter(inboxRptHistory, 'hist-rpt-district-filter');
