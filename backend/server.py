@@ -1695,6 +1695,32 @@ def chat():
         return jsonify({'error': 'AI service error'}), 502
 
 
+# ── SSO ──────────────────────────────────────────────────────────────────────
+
+@app.route('/api/sso/token', methods=['POST'])
+@require_auth
+def sso_token():
+    sso_secret = os.environ.get('SSO_SECRET')
+    if not sso_secret:
+        return jsonify({'error': 'SSO not configured'}), 503
+
+    user = g.user
+    db   = get_db()
+    enriched = _enrich_user(dict(user), db)
+
+    payload = {
+        'name':     (g.person or {}).get('name') or user.get('name', ''),
+        'role':     user.get('role_title', ''),
+        'group':    enriched.get('group_name') or enriched.get('group_code') or '',
+        'district': enriched.get('district_name') or '',
+        'color':    user.get('color') or '',
+        'exp':      datetime.now(tz=timezone.utc) + timedelta(minutes=5),
+    }
+
+    token = jwt.encode(payload, sso_secret, algorithm='HS256')
+    return jsonify({'token': token})
+
+
 # ── Entry point ───────────────────────────────────────────────────────────────
 
 if __name__ == '__main__':
