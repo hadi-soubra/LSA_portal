@@ -155,8 +155,28 @@
   };
 
   // ── ScoutMind redirect ──────────────────────────────────────────────────────
-  window.openScoutMind = function () {
-    window.open('http://localhost:8501', '_blank');
+  window.openScoutMind = async function () {
+    const btn = document.querySelector('.chat-scoutmind-btn');
+    if (btn) { btn.disabled = true; btn.textContent = 'Opening...'; }
+
+    try {
+      const res = await fetch('/api/sso/token', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${getToken()}`,
+        },
+      });
+
+      if (!res.ok) throw new Error('Token request failed');
+      const { token } = await res.json();
+      window.open(`http://localhost:8501?token=${encodeURIComponent(token)}`, '_blank');
+    } catch {
+      history.push({ role: 'assistant', content: 'Could not connect to ScoutMind. Please try again.' });
+      renderMessages();
+    } finally {
+      if (btn) { btn.disabled = false; btn.textContent = 'Generate Weekly Meeting Plan'; }
+    }
   };
 
   // ── Init on DOM ready ───────────────────────────────────────────────────────
