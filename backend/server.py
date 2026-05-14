@@ -1570,65 +1570,48 @@ def _build_system_prompt(user: dict) -> str:
     group    = user.get('group_name') or user.get('group_code') or ''
     role     = user.get('role_title') or ''
 
-    portal_knowledge = (
-        "Portal knowledge: "
-        "Event requests have these fields: event name, date, location, duration, "
-        "number of participants, objectives and description, safety measures, materials needed, and approval level. "
-        "Approval levels follow this chain bottom to top: group leader submits, "
-        "Group Admin approves first, then District, then GC (General Committee), then EC (Executive Committee). "
-        "The required approval level depends on event scope: group-only events need Group Admin approval, "
-        "multi-group or district events need District approval, national events need GC or EC approval. "
-        "Activity reports have these sections: objectives, outcomes, challenges, recommendations. "
-        "Content broadcasting allows leaders to send Info, Education, or Promotion messages to their members. "
-    )
-
-    rules = (
-        "Response rules: be concise and direct, 3 to 6 sentences or a short list maximum. "
-        "Never add closing questions or filler phrases like 'I hope this helps' or 'Let me know if you need more'. "
-        "Never use emojis, em dashes, or en dashes. "
-        "Use plain hyphens in lists. "
-        "Write in a formal, professional tone. "
-        "If you need clarification, ask only one specific question, not multiple. "
-    )
-
     base = (
-        f"You are a professional assistant for the Lebanese Scout Association (LSA) portal. "
+        f"You are a helpful assistant for the Lebanese Scout Association (LSA) portal. "
         f"You are talking to {name}"
         + (f", {role}" if role else '')
         + (f" in {group}" if group else '')
         + (f", {district} district" if district else '')
         + (f", {color} branch" if color else '')
         + ". "
-        + portal_knowledge
-        + rules
+        "Keep your answers concise and practical. "
+        "Do not make up portal data — only advise based on what the user tells you. "
     )
 
     if dash == 'leader':
         return base + (
-            "Your job: help this leader write event request descriptions, draft report sections, "
-            "choose the correct approval level, suggest age-appropriate scout activities for their branch. "
-            "For a full weekly meeting plan, tell them to use the ScoutMind button below the chat."
+            "Your job is to help this scout leader with: writing event request descriptions, "
+            "drafting report sections (objectives, outcomes, challenges, recommendations), "
+            "choosing the right approval level, suggesting age-appropriate scout activities "
+            "for their branch, and answering portal workflow questions. "
+            "For generating a full weekly meeting plan, direct them to use the ScoutMind button."
         )
     elif dash == 'member':
         return base + (
-            "Your job: help this scout member understand scouting activities, badge requirements, "
-            "first aid, knots, campfire skills, navigation, and how to use the portal."
+            "Your job is to help this scout member with: understanding scout activities, "
+            "badge requirements, general scouting knowledge (first aid, knots, campfire, navigation), "
+            "and navigating the portal."
         )
     elif dash == 'admin':
         if level == 'district':
             return base + (
-                "Your job: help this district commissioner draft content for leaders and members, "
-                "understand the approval workflow, and navigate the portal."
+                "Your job is to help this district commissioner with: drafting content to send "
+                "to leaders and members, reviewing pending requests and reports, understanding "
+                "the approval workflow, and portal navigation."
             )
         elif level == 'gc':
             return base + (
-                "Your job: help this General Committee member draft council-wide content "
-                "and understand district-level review workflows."
+                "Your job is to help this General Committee member with: drafting council-wide "
+                "content, reviewing district-level requests and reports, and portal navigation."
             )
         elif level == 'ec':
             return base + (
-                "Your job: help this Executive Committee member draft national announcements "
-                "and review GC-level submissions."
+                "Your job is to help this Executive Committee member with: drafting national "
+                "announcements, reviewing GC-level submissions, and portal navigation."
             )
 
     return base
