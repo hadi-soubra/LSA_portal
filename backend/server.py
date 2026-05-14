@@ -4,14 +4,19 @@ Run:  python backend/server.py
 """
 
 import json
+import os
 import sqlite3
 from datetime import datetime, timedelta, timezone
 from functools import wraps
 from pathlib import Path
 
+import anthropic
 import jwt
+from dotenv import load_dotenv
 from flask import Flask, g, jsonify, request, send_from_directory
 from flask_cors import CORS
+
+load_dotenv(Path(__file__).parent / '.env')
 
 from db import get_db_path, hash_password, init_db, migrate_db, migrate_identity_split, migrate_reports_v2, migrate_events_v2
 
@@ -1553,6 +1558,99 @@ def debug_viewport():
     orientation = 'landscape (push)' if isinstance(w, int) and isinstance(h, int) and w > h else 'portrait (overlay)'
     print(f'[viewport] {w}w x {h}h — {orientation}', flush=True)
     return '', 204
+
+# ── CHAT ─────────────────────────────────────────────────────────────────────
+
+def _build_system_prompt(user: dict) -> str:
+    name     = user.get('name', 'there')
+    level    = user.get('level', '')
+    dash     = user.get('dashboard', '')
+    color    = user.get('color') or ''
+    district = user.get('district_name') or ''
+    group    = user.get('group_name') or user.get('group_code') or ''
+    role     = user.get('role_title') or ''
+
+    base = (
+        f"You are a helpful assistant for the Lebanese Scout Association (LSA) portal. "
+        f"You are talking to {name}"
+        + (f", {role}" if role else '')
+        + (f" in {group}" if group else '')
+        + (f", {district} district" if district else '')
+        + (f", {color} branch" if color else '')
+        + ". "
+        "Keep your answers concise and practical. "
+        "Do not make up portal data — only advise based on what the user tells you. "
+    )
+
+    if dash == 'leader':
+        return base + (
+            "Your job is to help this scout leader with: writing event request descriptions, "
+            "drafting report sections (objectives, outcomes, challenges, recommendations), "
+            "choosing the right approval level, suggesting age-appropriate scout activities "
+            "for their branch, and answering portal workflow questions. "
+            "For generating a full weekly meeting plan, direct them to use the ScoutMind button."
+        )
+    elif dash == 'member':
+        return base + (
+            "Your job is to help this scout member with: understanding scout activities, "
+            "badge requirements, general scouting knowledge (first aid, knots, campfire, navigation), "
+            "and navigating the portal."
+        )
+    elif dash == 'admin':
+        if level == 'district':
+            return base + (
+                "Your job is to help this district commissioner with: drafting content to send "
+                "to leaders and members, reviewing pending requests and reports, understanding "
+                "the approval workflow, and portal navigation."
+            )
+        elif level == 'gc':
+            return base + (
+                "Your job is to help this General Committee member with: drafting council-wide "
+                "content, reviewing district-level requests and reports, and portal navigation."
+            )
+        elif level == 'ec':
+            return base + (
+                "Your job is to help this Executive Committee member with: drafting national "
+                "announcements, reviewing GC-level submissions, and portal navigation."
+            )
+
+    return base
+
+
+@app.route('/api/chat', methods=['POST'])
+@require_auth
+def chat():
+    data     = request.get_json() or {}
+    messages = data.get('messages', [])
+
+    if not messages:
+        return jsonify({'error': 'messages are required'}), 400
+
+    # Keep last 10 messages only
+    messages = messages[-10:]
+
+    # Validate message format
+    for m in messages:
+        if m.get('role') not in ('user', 'assistant') or not m.get('content'):
+            return jsonify({'error': 'Invalid message format'}), 400
+
+    api_key = os.environ.get('ANTHROPIC_API_KEY')
+    if not api_key:
+        return jsonify({'error': 'AI service not configured'}), 503
+
+    try:
+        client = anthropic.Anthropic(api_key=api_key)
+        response = client.messages.create(
+            model='claude-haiku-4-5-20251001',
+            max_tokens=500,
+            system=_build_system_prompt(g.user),
+            messages=messages,
+        )
+        reply = response.content[0].text
+        return jsonify({'reply': reply})
+    except anthropic.APIError as e:
+        return jsonify({'error': 'AI service error'}), 502
+
 
 # ── Entry point ───────────────────────────────────────────────────────────────
 
