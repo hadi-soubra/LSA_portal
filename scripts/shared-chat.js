@@ -129,7 +129,9 @@
 
       removeTyping();
 
-      if (!res.ok) {
+      if (res.status === 429) {
+        history.push({ role: 'assistant', content: 'You have reached your daily message limit. Please try again tomorrow.' });
+      } else if (!res.ok) {
         history.push({ role: 'assistant', content: 'Something went wrong. Please try again.' });
       } else {
         const data = await res.json();
