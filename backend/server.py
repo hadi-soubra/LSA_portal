@@ -6,6 +6,7 @@ Run:  python backend/server.py
 import json
 import os
 import sqlite3
+from collections import defaultdict
 from datetime import datetime, timedelta, timezone
 from functools import wraps
 from pathlib import Path
@@ -1589,6 +1590,11 @@ def _build_system_prompt(user: dict) -> str:
         "Use plain hyphens in lists. "
         "Write in a formal, professional tone. "
         "If you need clarification, ask only one specific question, not multiple. "
+        "Scope restriction: you only answer questions related to the LSA portal, scouting activities, "
+        "event planning, reports, approvals, and scout leadership. "
+        "If the user asks anything unrelated to these topics, respond only with: "
+        "'I can only assist with LSA portal and scouting-related questions.' "
+        "Do not engage with personal, political, or off-topic questions under any circumstances. "
     )
 
     base = (
@@ -1634,9 +1640,29 @@ def _build_system_prompt(user: dict) -> str:
     return base
 
 
+# ── Chat rate limiting (in-memory, resets on server restart) ─────────────────
+CHAT_DAILY_LIMIT = 20
+_chat_counts = defaultdict(lambda: {'date': None, 'count': 0})
+
+def _check_rate_limit(user_id: int) -> bool:
+    """Returns True if the user is within their daily limit."""
+    today = datetime.now(tz=timezone.utc).date().isoformat()
+    entry = _chat_counts[user_id]
+    if entry['date'] != today:
+        entry['date'] = today
+        entry['count'] = 0
+    if entry['count'] >= CHAT_DAILY_LIMIT:
+        return False
+    entry['count'] += 1
+    return True
+
+
 @app.route('/api/chat', methods=['POST'])
 @require_auth
 def chat():
+    if not _check_rate_limit(g.user['id']):
+        return jsonify({'error': 'Daily message limit reached. Try again tomorrow.'}), 429
+
     data     = request.get_json() or {}
     messages = data.get('messages', [])
 
