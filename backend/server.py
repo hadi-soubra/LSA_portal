@@ -6,6 +6,7 @@ Run:  python backend/server.py
 import json
 import os
 import sqlite3
+import urllib.request
 from collections import defaultdict
 from datetime import datetime, timedelta, timezone
 from functools import wraps
@@ -1695,6 +1696,20 @@ def chat():
         return jsonify({'error': 'AI service error'}), 502
 
 
+# ── ScoutMind health check ────────────────────────────────────────────────────
+
+SCOUTMIND_URL = os.environ.get('SCOUTMIND_URL', 'http://localhost:8501')
+
+@app.route('/api/scoutmind/health', methods=['GET'])
+@require_auth
+def scoutmind_health():
+    try:
+        urllib.request.urlopen(SCOUTMIND_URL, timeout=3)
+        return jsonify({'ok': True})
+    except Exception:
+        return jsonify({'ok': False}), 503
+
+
 # ── SSO ──────────────────────────────────────────────────────────────────────
 
 @app.route('/api/sso/token', methods=['POST'])
@@ -1708,8 +1723,10 @@ def sso_token():
     db   = get_db()
     enriched = _enrich_user(dict(user), db)
 
+    person = g.person or {}
     payload = {
-        'name':     (g.person or {}).get('name') or user.get('name', ''),
+        'name':     person.get('name') or user.get('name', ''),
+        'email':    person.get('email') or '',
         'role':     user.get('role_title', ''),
         'group':    enriched.get('group_name') or enriched.get('group_code') or '',
         'district': enriched.get('district_name') or '',

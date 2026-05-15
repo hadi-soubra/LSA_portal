@@ -157,9 +157,17 @@
   // ── ScoutMind redirect ──────────────────────────────────────────────────────
   window.openScoutMind = async function () {
     const btn = document.querySelector('.chat-scoutmind-btn');
-    if (btn) { btn.disabled = true; btn.textContent = 'Opening...'; }
+    if (btn) {
+      btn.disabled = true;
+      btn.innerHTML = '<span class="chat-scoutmind-spinner"></span>Opening ScoutMind...';
+    }
 
     try {
+      const health = await fetch('/api/scoutmind/health', {
+        headers: { 'Authorization': `Bearer ${getToken()}` },
+      });
+      if (!health.ok) throw new Error('ScoutMind is not reachable');
+
       const res = await fetch('/api/sso/token', {
         method: 'POST',
         headers: {
@@ -167,15 +175,18 @@
           'Authorization': `Bearer ${getToken()}`,
         },
       });
-
       if (!res.ok) throw new Error('Token request failed');
       const { token } = await res.json();
       window.open(`http://localhost:8501?token=${encodeURIComponent(token)}`, '_blank');
-    } catch {
-      history.push({ role: 'assistant', content: 'Could not connect to ScoutMind. Please try again.' });
+    } catch (err) {
+      const msg = err.message === 'ScoutMind is not reachable'
+        ? 'ScoutMind is not running. Please start it and try again.'
+        : 'Could not open ScoutMind. Please try again.';
+      history.push({ role: 'assistant', content: msg });
       renderMessages();
     } finally {
       if (btn) { btn.disabled = false; btn.textContent = 'Generate Weekly Meeting Plan'; }
+
     }
   };
 
