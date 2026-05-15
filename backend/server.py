@@ -941,6 +941,8 @@ def submit_event():
         return jsonify({'error': 'required_approval_level must be group/district/gc/ec'}), 400
 
     start_level = _submit_start_level(actor)
+    if LEVEL_ORDER.index(data['required_approval_level']) < LEVEL_ORDER.index(start_level):
+        return jsonify({'error': 'Required approval level is below the first reviewer in your chain'}), 400
 
     db = get_db()
     db.execute(
@@ -1035,7 +1037,7 @@ def approve_event(event_id):
 
     actor_person_id = g.person['id'] if g.get('person') else None
 
-    if evt['current_level'] == evt['required_approval_level']:
+    if LEVEL_ORDER.index(evt['current_level']) >= LEVEL_ORDER.index(evt['required_approval_level']):
         db.execute('UPDATE event_requests SET status=?,updated_at=? WHERE id=?',
                    ('approved', now, event_id))
         db.execute(
@@ -1251,7 +1253,7 @@ def approve_report(report_id):
     now  = datetime.utcnow().isoformat()
     actor_person_id = g.person['id'] if g.get('person') else None
 
-    if report['current_level'] == report['required_approval_level']:
+    if LEVEL_ORDER.index(report['current_level']) >= LEVEL_ORDER.index(report['required_approval_level']):
         db.execute('UPDATE reports SET status=?,updated_at=? WHERE id=?',
                    ('approved', now, report_id))
         db.execute(
