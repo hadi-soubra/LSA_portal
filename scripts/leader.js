@@ -19,10 +19,28 @@ async function api(method, path, body) {
 }
 
 // ── Page init ────────────────────────────────────────────────────────────────
-const isGroupLeader      = userData && (userData.level === 'group' || userData.level === 'group_admin');
+const isGroupLeader        = userData && (userData.level === 'group' || userData.level === 'group_admin');
 const isColoredGroupLeader = isGroupLeader && !!userData.color;
-const isGroupHeadOrAdmin   = isGroupLeader && !userData.color;  // group head or group admin
-const isNoColorGroupLeader = isGroupHeadOrAdmin;                 // alias kept for comms logic
+const isGroupHeadOrAdmin   = isGroupLeader && !userData.color;
+const isNoColorGroupLeader = isGroupHeadOrAdmin;
+
+const UNIT_COLORS = { pink: '#EC4899', yellow: '#EAB308', green: '#059669', red: '#DC2626' };
+const UNIT_BG     = { pink: '#FDF2F8', yellow: '#FEFCE8', green: '#F0FDF4', red: '#FEF2F2' };
+const _accent   = userData?.level === 'group_admin' ? '#6B7280'
+                : userData?.color                   ? UNIT_COLORS[userData.color]
+                :                                     '#F97316';
+const _accentBg = userData?.level === 'group_admin' ? '#F9FAFB'
+                : userData?.color                   ? UNIT_BG[userData.color]
+                :                                     '#FFF7ED';
+
+const _SVG = {
+  inbox: `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 12 16 12 14 15 10 15 8 12 2 12"/><path d="M5.45 5.11L2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z"/></svg>`,
+  plus:  `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>`,
+  file:  `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>`,
+  users: `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>`,
+};
+
+let statsData = null;
 
 (async function init() {
   if (userData) {
@@ -50,6 +68,12 @@ const isNoColorGroupLeader = isGroupHeadOrAdmin;                 // alias kept f
     }
   }
 
+  // GL heads/admins can't select "Group Leader only" — they ARE the group-level reviewer
+  if (isGroupHeadOrAdmin) {
+    const groupOpt = document.querySelector('#cr-approval-level option[value="group"]');
+    if (groupOpt) groupOpt.remove();
+  }
+
   // Show inbox nav for group heads/admins (they receive requests and reports)
   if (isNoColorGroupLeader) {
     document.getElementById('nav-inbox-label').style.display = '';
@@ -57,13 +81,14 @@ const isNoColorGroupLeader = isGroupHeadOrAdmin;                 // alias kept f
     document.getElementById('nav-inbox-reports').style.display = '';
   }
 
-  const stats = await api('GET', '/api/stats');
-  if (stats && stats.pending_requests > 0) {
-    document.getElementById('hdr-badge-dot').style.display = '';
+  statsData = await api('GET', '/api/stats');
+  const _dot = document.getElementById('hdr-badge-dot');
+  if (_dot && statsData && statsData.pending_requests > 0) {
+    _dot.style.display = '';
   }
 
-  loadComms();
-  if (isGroupLeader) loadGroupUsers();
+  if (isGroupLeader) await loadGroupUsers();
+  await loadComms();
 })();
 
 // ── COMMUNICATIONS ──────────────────────────────────────────────────────────
@@ -110,6 +135,7 @@ async function loadComms() {
   renderInboxReportsHistory();
   renderTrackerRequests();
   renderTrackerReports();
+  renderHome();
 }
 
 function renderSentRequests() {
@@ -596,6 +622,212 @@ function showGroupTab(tab, btn) {
   renderGroupUsers(allGroupUsers);
 }
 
+// ── Home dashboard ───────────────────────────────────────────────────────────
+function renderHome() {
+  const el = document.getElementById('sec-home');
+  if (!el || !el.classList.contains('active')) return;
+
+  const displayName = (personData && personData.name) || userData?.name || 'Leader';
+  const roleLabel   = userData?.role_title || 'Leader';
+  const colorPill   = userData?.color
+    ? `<span style="background:${_accent};color:#fff;padding:0.1rem 0.5rem;border-radius:999px;font-size:0.75rem;margin-left:0.5rem;text-transform:capitalize;">${userData.color}</span>`
+    : '';
+
+  // Welcome banner
+  document.getElementById('home-welcome').innerHTML = `
+    <div class="card" style="border-left:4px solid ${_accent};background:${_accentBg};margin-bottom:1rem;">
+      <div class="card-body" style="padding:1.25rem 1.5rem;">
+        <div style="font-size:1.1rem;font-weight:600;margin-bottom:0.25rem;">
+          Welcome back, ${escHtml(displayName)} ${colorPill}
+        </div>
+        <div class="text-muted text-sm">${escHtml(roleLabel)}${userData?.group_name ? ' · ' + escHtml(userData.group_name) : ''}</div>
+      </div>
+    </div>`;
+
+  // Quick actions
+  const actions = [
+    { label: 'Send Request', icon: _SVG.plus,  onclick: `showSection('send-request')` },
+    { label: 'Send Report',  icon: _SVG.file,  onclick: `showSection('send-report')` },
+  ];
+  if (isGroupLeader) {
+    actions.push({ label: 'My Group', icon: _SVG.users, onclick: `showGroupTab('members')` });
+  }
+  if (isGroupHeadOrAdmin) {
+    actions.push({ label: 'Inbox', icon: _SVG.inbox, onclick: `showSection('inbox-requests')` });
+  }
+  document.getElementById('home-quick-actions').innerHTML = `
+    <div style="display:flex;flex-wrap:wrap;gap:0.75rem;margin-bottom:1rem;">
+      ${actions.map(a => `
+        <button class="btn" onclick="${a.onclick}" style="display:inline-flex;align-items:center;gap:0.4rem;">
+          ${a.icon} ${escHtml(a.label)}
+        </button>`).join('')}
+    </div>`;
+
+  // Stats rows
+  const pendingReqCount  = sentRequests.filter(e => e.status === 'pending').length;
+  const approvedReqCount = sentRequests.filter(e => e.status === 'approved').length;
+  const pendingRptCount  = sentReports.filter(r => r.status === 'pending').length;
+  const statsRows = [
+    { badge: 'badge-warning', borderColor: '#EAB308', label: 'Pending requests',  count: pendingReqCount,  section: 'tracker-requests' },
+    { badge: 'badge-success', borderColor: '#059669', label: 'Approved events',   count: approvedReqCount, section: 'tracker-requests' },
+    { badge: 'badge-warning', borderColor: '#EAB308', label: 'Pending reports',   count: pendingRptCount,  section: 'tracker-reports'  },
+  ];
+  if (isGroupHeadOrAdmin) {
+    const inboxTotal = inboxRequests.length + inboxReports.length;
+    statsRows.unshift({ badge: 'badge-danger', borderColor: '#DC2626', label: 'Inbox — needs review', count: inboxTotal, section: 'inbox-requests' });
+  }
+  document.getElementById('home-stats').innerHTML = `
+    <div class="card" style="margin-bottom:1rem;">
+      <div class="card-body" style="padding:0;">
+        ${statsRows.map((r, i) => `
+          <div onclick="showSection('${r.section}')"
+               style="display:flex;align-items:center;gap:0.75rem;padding:0.75rem 1rem;cursor:pointer;border-left:3px solid ${r.borderColor};${i < statsRows.length - 1 ? 'border-bottom:1px solid var(--border);' : ''}"
+               onmouseover="this.style.background='var(--surface-alt)'" onmouseout="this.style.background=''">
+            <span class="badge ${r.badge}" style="min-width:2rem;text-align:center;">${r.count}</span>
+            <span style="flex:1;">${escHtml(r.label)}</span>
+            <span class="text-muted">›</span>
+          </div>`).join('')}
+      </div>
+    </div>`;
+
+  // Scope card
+  const scopeCount     = isGroupLeader ? allGroupUsers.length : (statsData?.total_managed_users ?? '—');
+  const scopeTitle     = isColoredGroupLeader
+    ? (userData.color.charAt(0).toUpperCase() + userData.color.slice(1)) + ' Unit'
+    : 'My Group';
+  const scopeCountLabel = isColoredGroupLeader ? 'Members' : 'Leaders & Members';
+  document.getElementById('home-scope').innerHTML = `
+    <div class="card" style="border-left:4px solid ${_accent};margin-bottom:1rem;">
+      <div class="card-body">
+        <div class="card-title" style="margin-bottom:0.5rem;">${scopeTitle}</div>
+        <div style="display:flex;gap:2rem;flex-wrap:wrap;">
+          <div>
+            <div style="font-size:1.4rem;font-weight:700;color:${_accent};">${scopeCount}</div>
+            <div class="text-muted text-sm">${scopeCountLabel}</div>
+          </div>
+        </div>
+      </div>
+    </div>`;
+
+  // Review queue
+  if (isGroupHeadOrAdmin) {
+    const inboxTotal = inboxRequests.length + inboxReports.length;
+    document.getElementById('home-review-queue').innerHTML = inboxTotal > 0
+      ? `<div class="alert alert-danger" style="margin-bottom:1rem;cursor:pointer;" onclick="showSection('inbox-requests')">
+           <span class="alert-icon">${_SVG.inbox}</span>
+           <span>You have <strong>${inboxTotal}</strong> item${inboxTotal > 1 ? 's' : ''} waiting for your review.</span>
+         </div>`
+      : `<div style="margin-bottom:1rem;padding:0.75rem 1rem;border-radius:var(--radius);background:var(--surface-alt);color:var(--text-muted);font-size:0.9rem;">
+           Inbox is clear
+         </div>`;
+  } else {
+    document.getElementById('home-review-queue').innerHTML = '';
+  }
+
+  // 3-col grid
+  const calDates     = sentRequests.filter(e => e.start_date).map(e => e.start_date);
+  const pendingReqs  = sentRequests.filter(e => e.status === 'pending');
+  const approvedReqs = sentRequests.filter(e => e.status === 'approved');
+  const rejectedReqs = sentRequests.filter(e => e.status === 'rejected');
+  const pendingRpts  = sentReports.filter(r => r.status === 'pending');
+  const approvedRpts = sentReports.filter(r => r.status === 'approved');
+  const rejectedRpts = sentReports.filter(r => r.status === 'rejected');
+
+  document.getElementById('home-my-requests').innerHTML = `
+    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:1rem;margin-bottom:1rem;">
+      <div class="card">
+        <div class="card-body" id="home-cal-container"></div>
+      </div>
+      <div class="card">
+        <div class="card-header"><span class="card-title">My Requests</span></div>
+        <div class="card-body" style="padding-top:0;">
+          <div class="tab-bar" style="margin-bottom:0.75rem;">
+            <button class="tab-btn active" id="hreq-tab-pending"  onclick="homeReqTab('pending','req')">Pending</button>
+            <button class="tab-btn"        id="hreq-tab-approved" onclick="homeReqTab('approved','req')">Approved</button>
+            <button class="tab-btn"        id="hreq-tab-rejected" onclick="homeReqTab('rejected','req')">Rejected</button>
+          </div>
+          <div id="hreq-pane-pending"  class="tab-pane active">${_homeReqList(pendingReqs, 'pending')}</div>
+          <div id="hreq-pane-approved" class="tab-pane">${_homeReqList(approvedReqs, 'approved')}</div>
+          <div id="hreq-pane-rejected" class="tab-pane">${_homeReqList(rejectedReqs, 'rejected')}</div>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-header"><span class="card-title">My Reports</span></div>
+        <div class="card-body" style="padding-top:0;">
+          <div class="tab-bar" style="margin-bottom:0.75rem;">
+            <button class="tab-btn active" id="hrpt-tab-pending"  onclick="homeReqTab('pending','rpt')">Pending</button>
+            <button class="tab-btn"        id="hrpt-tab-approved" onclick="homeReqTab('approved','rpt')">Approved</button>
+            <button class="tab-btn"        id="hrpt-tab-rejected" onclick="homeReqTab('rejected','rpt')">Rejected</button>
+          </div>
+          <div id="hrpt-pane-pending"  class="tab-pane active">${_homeRptList(pendingRpts, 'pending')}</div>
+          <div id="hrpt-pane-approved" class="tab-pane">${_homeRptList(approvedRpts, 'approved')}</div>
+          <div id="hrpt-pane-rejected" class="tab-pane">${_homeRptList(rejectedRpts, 'rejected')}</div>
+        </div>
+      </div>
+    </div>`;
+
+  _renderMiniCal(document.getElementById('home-cal-container'), calDates);
+
+  document.getElementById('home-upcoming').innerHTML   = '';
+  document.getElementById('home-my-reports').innerHTML = '';
+}
+
+function homeReqTab(tab, type) {
+  const prefix = type === 'req' ? 'hreq' : 'hrpt';
+  ['pending', 'approved', 'rejected'].forEach(t => {
+    document.getElementById(`${prefix}-tab-${t}`)?.classList.toggle('active', t === tab);
+    document.getElementById(`${prefix}-pane-${t}`)?.classList.toggle('active', t === tab);
+  });
+}
+
+function _homeReqList(items, status) {
+  if (!items.length) return '<div class="text-muted text-sm">None</div>';
+  const borderColor = status === 'pending' ? '#EAB308' : status === 'approved' ? '#059669' : '#DC2626';
+  return items.map(e => `
+    <div style="padding:0.4rem 0 0.4rem 0.5rem;border-bottom:1px solid var(--border);border-left:3px solid ${borderColor};font-size:0.85rem;">
+      <div class="font-semibold">${escHtml(e.title)}</div>
+      <div class="text-muted">${fmtDate(e.created_at)}</div>
+    </div>`).join('');
+}
+
+function _homeRptList(items, status) {
+  if (!items.length) return '<div class="text-muted text-sm">None</div>';
+  const borderColor = status === 'pending' ? '#EAB308' : status === 'approved' ? '#059669' : '#DC2626';
+  return items.map(r => `
+    <div style="padding:0.4rem 0 0.4rem 0.5rem;border-bottom:1px solid var(--border);border-left:3px solid ${borderColor};font-size:0.85rem;">
+      <div class="font-semibold">${escHtml(r.title || r.event_title || '—')}</div>
+      <div class="text-muted">${fmtDate(r.created_at)}</div>
+    </div>`).join('');
+}
+
+function _renderMiniCal(el, markedDates) {
+  if (!el) return;
+  const now   = new Date();
+  const year  = now.getFullYear();
+  const month = now.getMonth();
+  const firstDay    = new Date(year, month, 1).getDay();
+  const daysInMonth = new Date(year, month + 1, 0).getDate();
+  const monthName   = now.toLocaleDateString('en-GB', { month: 'long', year: 'numeric' });
+  const marked      = new Set(markedDates.map(d => String(d).slice(0, 10)));
+  const today       = now.toISOString().slice(0, 10);
+
+  let cells = ['Su','Mo','Tu','We','Th','Fr','Sa']
+    .map(d => `<div style="font-size:0.7rem;font-weight:600;color:var(--text-muted);text-align:center;">${d}</div>`)
+    .join('');
+  for (let i = 0; i < firstDay; i++) cells += '<div></div>';
+  for (let d = 1; d <= daysInMonth; d++) {
+    const iso = `${year}-${String(month + 1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+    let style = 'font-size:0.8rem;text-align:center;padding:0.15rem;border-radius:50%;';
+    if (iso === today)       style += `background:${_accent};color:#fff;font-weight:700;`;
+    else if (marked.has(iso)) style += `background:${_accentBg};color:${_accent};font-weight:600;`;
+    cells += `<div style="${style}">${d}</div>`;
+  }
+
+  el.innerHTML = `
+    <div style="font-size:0.8rem;font-weight:600;margin-bottom:0.5rem;color:var(--text-muted);">${monthName}</div>
+    <div style="display:grid;grid-template-columns:repeat(7,1fr);gap:2px;">${cells}</div>`;
+}
+
 function showSection(id, btn) {
   document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
   document.querySelectorAll('.nav-item, .nav-sub-item').forEach(n => n.classList.remove('active'));
@@ -606,6 +838,7 @@ function showSection(id, btn) {
   document.getElementById('section-subtitle').textContent = t[1];
   document.getElementById('sidebar').classList.remove('open');
   document.getElementById('sidebar-backdrop').classList.remove('open');
+  if (id === 'home') { renderHome(); return; }
   if (!_initedContentSections.has(id)) {
     if (id === 'content-send-members') { _initedContentSections.add(id); renderContentSendForm(id, 'members'); }
     if (id === 'content-send-leaders') { _initedContentSections.add(id); renderContentSendForm(id, 'leaders'); }
