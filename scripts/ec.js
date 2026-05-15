@@ -40,7 +40,22 @@ let allEvents = [], allReports = [], allUsers = [];
   }
 
   await Promise.all([loadUsers(), loadEvents(), loadComms()]);
-  showSection('inbox-requests', document.querySelector('.nav-sub-item[onclick*="inbox-requests"]'));
+  const _ecDistricts = new Set(allUsers.map(u => u.district_name).filter(Boolean)).size;
+  const _ecLeaders   = allUsers.filter(u => u.level !== 'member').length;
+  const _ecMembers   = allUsers.filter(u => u.level === 'member').length;
+  renderHomeDashboard({
+    displayName: personData?.name || userData?.name || 'Admin',
+    roleTitle: userData?.role_title || 'EC President',
+    summaryHtml: `You are the final approval level, overseeing <strong>${_ecDistricts}</strong> district${_ecDistricts !== 1 ? 's' : ''}, <strong>${_ecLeaders}</strong> leader${_ecLeaders !== 1 ? 's' : ''}, and <strong>${_ecMembers}</strong> member${_ecMembers !== 1 ? 's' : ''}.`,
+    sentRequests: [], sentReports: [],
+    inboxRequests, inboxReports,
+    showInbox: true,
+    showPending: false,
+    showSubmissions: false,
+    showSendButtons: false,
+    showGroup: false,
+    showLeaderCount: false,
+  });
 })();
 
 // ── USERS ─────────────────────────────────────────────────────────────────────

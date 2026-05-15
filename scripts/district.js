@@ -61,7 +61,25 @@ let allGroupsRef = [], allDistrictsRef = [];
   }
 
   await Promise.all([loadUsers(), loadEvents(), loadComms()]);
-  showSection('inbox-requests', document.querySelector('.nav-sub-item[onclick*="inbox-requests"]'));
+  const _dLeaders = allUsers.filter(u => u.level !== 'member').length;
+  const _dMembers = allUsers.filter(u => u.level === 'member').length;
+  const _colorLabel = userData.color
+    ? userData.color.charAt(0).toUpperCase() + userData.color.slice(1) : 'your';
+  renderHomeDashboard({
+    displayName: (personData && personData.name) || userData.name || 'Admin',
+    roleTitle:   userData.role_title || 'District Commissioner',
+    summaryHtml: isDistrictHead
+      ? `You are managing <strong>${allGroupsRef.length}</strong> group${allGroupsRef.length !== 1 ? 's' : ''}, <strong>${_dLeaders}</strong> leader${_dLeaders !== 1 ? 's' : ''}, and <strong>${_dMembers}</strong> member${_dMembers !== 1 ? 's' : ''} in your district.`
+      : `You are managing <strong>${_dLeaders}</strong> leader${_dLeaders !== 1 ? 's' : ''} and <strong>${_dMembers}</strong> member${_dMembers !== 1 ? 's' : ''} in your ${_colorLabel} unit.`,
+    sentRequests, sentReports,
+    inboxRequests, inboxReports,
+    showInbox:       true,
+    showPending:     isDistrictHead,
+    showSubmissions: true,
+    showSendButtons: true,
+    showGroup:       false,
+    showLeaderCount: false,
+  });
 })();
 
 // ── USERS ─────────────────────────────────────────────────────────────────────
@@ -210,8 +228,6 @@ async function modalConfirm() {
 // ── EVENT REQUESTS ─────────────────────────────────────────────────────────────
 async function loadEvents() {
   allEvents = await api('GET', '/api/events') || [];
-  renderPendingEvents();
-  renderAllEventsTable();
 }
 
 const STATUS_BADGE = {

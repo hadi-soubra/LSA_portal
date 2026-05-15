@@ -58,7 +58,24 @@ let allDistrictsRef = [];
   }
 
   await Promise.all([loadUsers(), loadEvents(), loadComms()]);
-  showSection('inbox-requests', document.querySelector('.nav-sub-item[onclick*="inbox-requests"]'));
+  const _gcLeaders = allUsers.filter(u => u.level !== 'member').length;
+  const _gcMembers = allUsers.filter(u => u.level === 'member').length;
+  const _gcColorLabel = userData.color ? userData.color.charAt(0).toUpperCase() + userData.color.slice(1) : 'your';
+  renderHomeDashboard({
+    displayName: (personData && personData.name) || userData.name || 'Admin',
+    roleTitle: userData.role_title || 'General Commissioner',
+    summaryHtml: isGcHead
+      ? `You are overseeing <strong>${allDistrictsRef.length}</strong> district${allDistrictsRef.length !== 1 ? 's' : ''}, <strong>${_gcLeaders}</strong> leader${_gcLeaders !== 1 ? 's' : ''}, and <strong>${_gcMembers}</strong> member${_gcMembers !== 1 ? 's' : ''}.`
+      : `You are managing <strong>${_gcLeaders}</strong> leader${_gcLeaders !== 1 ? 's' : ''} and <strong>${_gcMembers}</strong> member${_gcMembers !== 1 ? 's' : ''} in your ${_gcColorLabel} unit.`,
+    sentRequests, sentReports,
+    inboxRequests, inboxReports,
+    showInbox: true,
+    showPending: isGcHead,
+    showSubmissions: true,
+    showSendButtons: true,
+    showGroup: false,
+    showLeaderCount: false,
+  });
 })();
 
 // ── USERS ─────────────────────────────────────────────────────────────────────

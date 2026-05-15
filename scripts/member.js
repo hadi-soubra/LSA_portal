@@ -18,6 +18,8 @@ async function api(method, path, body) {
   return r.json();
 }
 
+let _contentCache = null;
+
 // ── Page init ────────────────────────────────────────────────────────────────
 (async function init() {
   const displayName = personData?.name || userData?.name || '';
@@ -42,8 +44,67 @@ async function api(method, path, body) {
       (userData?.district_name ? ' — ' + userData.district_name : '');
   }
 
-  showSection('profile', document.querySelector('.nav-sub-item[onclick*="profile"]'));
+  await renderMemberHome();
 })();
+
+// ── Member Home Dashboard ──────────────────────────────────────────────────────
+const CONTENT_TYPE_LABEL = {
+  notification: 'Info', resource: 'Info',
+  training: 'Education', activity: 'Promotion',
+};
+
+async function renderMemberHome() {
+  const displayName = personData?.name || userData?.name || '';
+
+  document.getElementById('home-greeting').textContent = `Welcome back, ${displayName}!`;
+  const colorSuffix = userData?.color
+    ? ' · ' + userData.color.charAt(0).toUpperCase() + userData.color.slice(1) + ' Branch'
+    : '';
+  document.getElementById('home-role-line').textContent =
+    'Member' + colorSuffix + (userData?.group_name ? ' · ' + userData.group_name : '');
+
+  const summaryEl = document.getElementById('home-group-summary');
+  if (summaryEl) {
+    const colorPart = userData?.color
+      ? `<strong>${userData.color.charAt(0).toUpperCase() + userData.color.slice(1)} Branch</strong> member`
+      : 'member';
+    const groupPart = userData?.group_name ? ` of <strong>${escHtml(userData.group_name)}</strong>` : '';
+    const districtPart = userData?.district_name ? `, ${escHtml(userData.district_name)}` : '';
+    summaryEl.innerHTML = `You are a ${colorPart}${groupPart}${districtPart}.`;
+    summaryEl.style.display = '';
+  }
+
+  document.getElementById('home-quick-nav-body').innerHTML = `
+    <div style="display:flex;gap:0.5rem;flex-wrap:wrap;">
+      <button class="btn btn-secondary" onclick="showSection('profile', null)">👤 My Profile</button>
+      <button class="btn btn-secondary" onclick="showSection('partnerships', null)">🎖️ Partnerships & Rewards</button>
+      <button class="btn btn-secondary" onclick="showSection('content-info', null)">📋 Info</button>
+      <button class="btn btn-secondary" onclick="showSection('content-education', null)">📚 Education</button>
+      <button class="btn btn-secondary" onclick="showSection('content-promotion', null)">📣 Promotion</button>
+    </div>
+  `;
+
+  const contentEl = document.getElementById('home-recent-content-body');
+  const content = await _fetchContent();
+  const recent = content.slice(0, 5);
+  if (!recent.length) {
+    contentEl.innerHTML = '<p class="text-muted text-sm">No content received yet.</p>';
+    return;
+  }
+  contentEl.innerHTML =
+    recent.map(c => `
+      <div style="padding:0.5rem 0;border-bottom:1px solid var(--border);">
+        <div class="font-semibold text-sm">${escHtml(c.title)}</div>
+        <div class="text-muted text-sm" style="margin-top:0.2rem;">
+          ${CONTENT_TYPE_LABEL[c.type] || c.type} · ${fmtDate(c.created_at)} · From ${escHtml(c.sender_name || '—')}
+        </div>
+      </div>`).join('') +
+    `<div style="margin-top:0.75rem;display:flex;gap:0.5rem;flex-wrap:wrap;">
+      <button class="btn btn-sm btn-secondary" onclick="showSection('content-info', null)">View Info</button>
+      <button class="btn btn-sm btn-secondary" onclick="showSection('content-education', null)">View Education</button>
+      <button class="btn btn-sm btn-secondary" onclick="showSection('content-promotion', null)">View Promotion</button>
+    </div>`;
+}
 
 // ── Profile save ──────────────────────────────────────────────────────────────
 async function saveProfile() {
@@ -83,8 +144,6 @@ async function changePassword() {
 }
 
 // ── Content ───────────────────────────────────────────────────────────────────
-let _contentCache = null;
-
 async function _fetchContent() {
   if (_contentCache) return _contentCache;
   _contentCache = await api('GET', '/api/member/content') || [];

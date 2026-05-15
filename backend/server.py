@@ -223,10 +223,12 @@ def _users_in_scope(actor: dict, db) -> list[dict]:
     # ── Group-level leaders (dashboard='leader') ──────────────────────────────
     if actor['dashboard'] == 'leader':
         if color:
-            # Colored group leader: view-only, same-color members in own group
+            # Colored group leader: view-only
+            # Members: same-color members in own group
+            # Leaders: all leaders in the group (for stats/counts), excluding self
             rows = db.execute(
-                _USER_BASE + " WHERE u.group_id=? AND u.level='member' AND u.color=?",
-                (actor['group_id'], color)).fetchall()
+                _USER_BASE + " WHERE u.group_id=? AND ((u.level='member' AND u.color=?) OR u.level IN ('group','group_admin')) AND u.id!=?",
+                (actor['group_id'], color, actor['id'])).fetchall()
             return _pack_users(rows, False)
         # Group head (level='group', no color) or group admin (level='group_admin'):
         # view + edit everyone in group

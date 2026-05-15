@@ -164,6 +164,40 @@
 
       <!-- ===== HOME ===== -->
       <div class="section active" id="sec-home">
+
+        <div class="home-welcome">
+          <div class="home-welcome-text">
+            <h2 id="home-greeting">Welcome back!</h2>
+            <p id="home-role-line" class="text-muted text-sm"></p>
+          </div>
+          <div class="home-quick-actions" id="home-quick-actions">
+            <button class="btn btn-primary" onclick="showSection('send-request', null)">📤 Send Request</button>
+            <button class="btn btn-secondary" onclick="showSection('send-report', null)">📊 Send Report</button>
+          </div>
+        </div>
+
+        <div class="home-group-summary" id="home-group-summary"></div>
+        <div class="stats-grid" id="home-stats-grid"></div>
+
+        <div class="home-lower-grid">
+          <div class="card">
+            <div class="card-header"><span class="card-title">My Submissions</span></div>
+            <div class="card-body" id="home-submissions-body"><div class="text-muted text-sm">Loading…</div></div>
+          </div>
+          <div class="card" id="home-inbox-card" style="display:none;">
+            <div class="card-header"><span class="card-title">Inbox</span></div>
+            <div class="card-body" id="home-inbox-body"><div class="text-muted text-sm">Loading…</div></div>
+          </div>
+        </div>
+
+        <div class="home-announce-prompt">
+          <p>Any recently approved events? Send an announcement to your members or leaders.</p>
+          <div class="home-announce-actions">
+            <button class="btn btn-primary" onclick="showSection('content-send-members', null)">📢 Send to Members</button>
+            <button class="btn btn-secondary" onclick="showSection('content-send-leaders', null)">📢 Send to Leaders</button>
+          </div>
+        </div>
+
       </div>
 
       <!-- ===== USERS ===== -->
@@ -491,6 +525,7 @@
 <div id="request-print-area"></div>
 
 <script src="scripts/shared-chat.js"></script>
+<script src="scripts/shared-home-dashboard.js"></script>
 <script src="scripts/gc.js"></script>
 <script src="scripts/report-detail.js"></script>
 <script src="scripts/request-detail.js"></script>

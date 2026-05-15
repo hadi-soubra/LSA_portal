@@ -59,11 +59,28 @@ const isNoColorGroupLeader = isGroupHeadOrAdmin;                 // alias kept f
 
   const stats = await api('GET', '/api/stats');
   if (stats && stats.pending_requests > 0) {
-    document.getElementById('hdr-badge-dot').style.display = '';
+    const dot = document.getElementById('hdr-badge-dot');
+    if (dot) dot.style.display = '';
   }
 
-  loadComms();
-  if (isGroupLeader) loadGroupUsers();
+  const commsP = loadComms();
+  const groupP = isGroupLeader ? loadGroupUsers() : Promise.resolve();
+  await Promise.all([commsP, groupP]);
+  renderHomeDashboard({
+    displayName: (personData && personData.name) || (userData && userData.name) || 'Leader',
+    groupName:   userData && userData.group_name,
+    roleTitle:   userData && userData.role_title,
+    colorLabel:  userData && userData.color
+      ? ` · ${userData.color.charAt(0).toUpperCase() + userData.color.slice(1)} Unit` : '',
+    sentRequests, sentReports,
+    inboxRequests, inboxReports,
+    groupUsers:  allGroupUsers,
+    showInbox:       isGroupHeadOrAdmin,
+    showPending:     isGroupHeadOrAdmin,
+    showGroup:       isGroupLeader,
+    showLeaderCount: isGroupLeader,
+    userColor:       userData.color || null,
+  });
 })();
 
 // ── COMMUNICATIONS ──────────────────────────────────────────────────────────
