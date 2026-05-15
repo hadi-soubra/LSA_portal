@@ -426,9 +426,19 @@ def migrate_events_v2():
     conn.close()
 
 
+def migrate_content_v2():
+    """Add event_date field to content table (idempotent)."""
+    conn = sqlite3.connect(DB_PATH)
+    if not _column_exists(conn, 'content', 'event_date'):
+        conn.execute('ALTER TABLE content ADD COLUMN event_date TEXT')
+    conn.commit()
+    conn.close()
+
+
 if __name__ == '__main__':
     init_db()
     migrate_db()
     migrate_identity_split()
     migrate_reports_v2()
     migrate_events_v2()
+    migrate_content_v2()

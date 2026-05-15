@@ -545,6 +545,10 @@ function renderContentSendForm(sectionId, recipientType) {
           </select>
         </div>
         <div class="form-group">
+          <label class="form-label">Event Date <span class="text-muted" style="font-weight:400;">(optional — shown on recipient calendar)</span></label>
+          <input class="form-control" type="date" id="${p}-event-date" />
+        </div>
+        <div class="form-group">
           <label class="form-label">Target Units <span class="text-muted" style="font-weight:400;">(leave unchecked for all)</span></label>
           <div style="display:flex;gap:1.25rem;flex-wrap:wrap;margin-top:0.5rem;">
             <label style="display:flex;align-items:center;gap:0.4rem;cursor:pointer;"><input type="checkbox" class="${p}-color" value="pink" /> Pink</label>
@@ -561,12 +565,13 @@ function renderContentSendForm(sectionId, recipientType) {
 }
 
 async function submitContent(recipientType) {
-  const p       = 'cs-' + recipientType;
-  const title   = document.getElementById(`${p}-title`).value.trim();
-  const body    = document.getElementById(`${p}-body`).value.trim();
-  const ctype   = document.getElementById(`${p}-type`).value;
-  const colors  = [...document.querySelectorAll(`.${p}-color:checked`)].map(el => el.value);
-  const alertEl = document.getElementById(`${p}-alert`);
+  const p         = 'cs-' + recipientType;
+  const title     = document.getElementById(`${p}-title`).value.trim();
+  const body      = document.getElementById(`${p}-body`).value.trim();
+  const ctype     = document.getElementById(`${p}-type`).value;
+  const colors    = [...document.querySelectorAll(`.${p}-color:checked`)].map(el => el.value);
+  const eventDate = document.getElementById(`${p}-event-date`)?.value || null;
+  const alertEl   = document.getElementById(`${p}-alert`);
 
   if (!title) {
     alertEl.innerHTML = '<div class="alert alert-danger"><span class="alert-icon">❌</span> Title is required.</div>';
@@ -576,11 +581,14 @@ async function submitContent(recipientType) {
     title, body, content_type: ctype,
     target_colors: colors.length ? colors : null,
     target_recipient_type: recipientType,
+    event_date: eventDate || null,
   });
   if (res && !res.error) {
     alertEl.innerHTML = '<div class="alert alert-success"><span class="alert-icon">✅</span> Content sent.</div>';
     document.getElementById(`${p}-title`).value = '';
     document.getElementById(`${p}-body`).value  = '';
+    const dateEl = document.getElementById(`${p}-event-date`);
+    if (dateEl) dateEl.value = '';
     document.querySelectorAll(`.${p}-color`).forEach(el => el.checked = false);
     setTimeout(() => alertEl.innerHTML = '', 3000);
   } else {

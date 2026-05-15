@@ -19,7 +19,7 @@ from flask_cors import CORS
 
 load_dotenv(Path(__file__).parent / '.env')
 
-from db import get_db_path, hash_password, init_db, migrate_db, migrate_identity_split, migrate_reports_v2, migrate_events_v2
+from db import get_db_path, hash_password, init_db, migrate_db, migrate_identity_split, migrate_reports_v2, migrate_events_v2, migrate_content_v2
 
 # ── App setup ─────────────────────────────────────────────────────────────────
 
@@ -1484,11 +1484,12 @@ def send_content():
         return jsonify({'error': 'Forbidden'}), 403
 
     data  = request.get_json(silent=True) or {}
-    title = (data.get('title') or '').strip()
-    body  = (data.get('body')  or '').strip()
-    ctype = data.get('content_type', '')
-    colors = data.get('target_colors')          # list[str] or None
-    rtype  = data.get('target_recipient_type', 'members')
+    title      = (data.get('title') or '').strip()
+    body       = (data.get('body')  or '').strip()
+    ctype      = data.get('content_type', '')
+    colors     = data.get('target_colors')          # list[str] or None
+    rtype      = data.get('target_recipient_type', 'members')
+    event_date = (data.get('event_date') or '').strip() or None
 
     if not title:
         return jsonify({'error': 'Title is required'}), 400
@@ -1508,11 +1509,11 @@ def send_content():
     db = get_db()
     db.execute(
         'INSERT INTO content (title, body, content_type, sent_by, target_colors, '
-        'target_recipient_type, target_district_ids, target_group_ids) '
-        'VALUES (?,?,?,?,?,?,?,?)',
+        'target_recipient_type, target_district_ids, target_group_ids, event_date) '
+        'VALUES (?,?,?,?,?,?,?,?,?)',
         (title, body, ctype, actor['id'],
          json.dumps(colors) if colors else None,
-         rtype, target_district_ids, target_group_ids)
+         rtype, target_district_ids, target_group_ids, event_date)
     )
     db.commit()
     return jsonify({'message': 'Content sent'}), 201
@@ -1731,4 +1732,5 @@ if __name__ == '__main__':
     migrate_identity_split()
     migrate_reports_v2()
     migrate_events_v2()
+    migrate_content_v2()
     app.run(debug=True, port=5000)
