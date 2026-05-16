@@ -456,6 +456,7 @@
 
         <div class="page-header">
           <button class="btn btn-primary" onclick="openAddMemberModal()" id="add-member-btn" style="display:none;">+ Add Member</button>
+          <button class="btn btn-primary" onclick="openAddLeaderModal()" id="add-leader-btn" style="display:none;">+ Add Leader</button>
         </div>
 
         <div class="card">
@@ -537,6 +538,60 @@
   </div>
 </div>
 
+<!-- Add leader modal (no-color group leaders only) -->
+<div class="modal-overlay" id="addl-modal">
+  <div class="modal" style="max-width:440px;">
+    <div class="modal-header">
+      <span class="modal-title">Add Leader</span>
+      <button class="modal-close" onclick="closeAddLeaderModal()">✕</button>
+    </div>
+    <div class="modal-body">
+      <div id="addl-alert"></div>
+      <div class="form-row">
+        <div>
+          <label class="form-label">Full Name *</label>
+          <input class="form-control" type="text" id="addl-name" placeholder="Leader's full name" />
+        </div>
+        <div>
+          <label class="form-label">Email *</label>
+          <input class="form-control" type="email" id="addl-email" placeholder="Login email" />
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Password *</label>
+        <input class="form-control" type="password" id="addl-password" placeholder="Initial password" />
+      </div>
+      <div class="form-row">
+        <div>
+          <label class="form-label">Role</label>
+          <select class="form-control" id="addl-level">
+            <option value="group">Group Leader</option>
+            <option value="group_admin">Administrative Leader</option>
+          </select>
+        </div>
+        <div>
+          <label class="form-label">Color</label>
+          <select class="form-control" id="addl-color">
+            <option value="">— None —</option>
+            <option value="pink">Pink</option>
+            <option value="yellow">Yellow</option>
+            <option value="green">Green</option>
+            <option value="red">Red</option>
+          </select>
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Role Title</label>
+        <input class="form-control" type="text" id="addl-role-title" placeholder="e.g., Assistant Leader…" />
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeAddLeaderModal()">Cancel</button>
+      <button class="btn btn-primary" onclick="saveNewLeader()">+ Add Leader</button>
+    </div>
+  </div>
+</div>
+
 <!-- Edit member modal (group leader only) -->
 <div class="modal-overlay" id="gm-modal">
   <div class="modal" style="max-width:440px;">
@@ -568,6 +623,40 @@
     <div class="modal-footer">
       <button class="btn btn-secondary" onclick="closeGmModal()">Cancel</button>
       <button class="btn btn-primary" onclick="saveGmUser()">💾 Save</button>
+    </div>
+  </div>
+</div>
+
+<!-- Assign Leader modal (no-color group leaders only) -->
+<div class="modal-overlay" id="al-modal">
+  <div class="modal" style="max-width:440px;">
+    <div class="modal-header">
+      <span class="modal-title">Assign Leader</span>
+      <button class="modal-close" onclick="closeAssignLeaderModal()">✕</button>
+    </div>
+    <div class="modal-body">
+      <div id="al-alert"></div>
+      <p class="text-muted text-sm" style="margin-bottom:1.1rem;">
+        Assigning to: <strong id="al-role-name"></strong>
+      </p>
+      <div class="form-group">
+        <label class="form-label">Email *</label>
+        <input class="form-control" type="email" id="al-email" placeholder="person@example.com" />
+        <p class="form-hint">Enter their email. If they already have an account, that's all you need.</p>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Full Name <span style="font-weight:400;color:var(--text-muted);">(required for new accounts)</span></label>
+        <input class="form-control" type="text" id="al-name" placeholder="Full name" />
+      </div>
+      <div class="form-group">
+        <label class="form-label">Password <span style="font-weight:400;color:var(--text-muted);">(required for new accounts)</span></label>
+        <input class="form-control" type="password" id="al-password" placeholder="Initial password" />
+        <p class="form-hint">Leave Name and Password blank if this person already has an account.</p>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeAssignLeaderModal()">Cancel</button>
+      <button class="btn btn-primary" onclick="saveAssignLeader()">Assign</button>
     </div>
   </div>
 </div>

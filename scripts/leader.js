@@ -383,6 +383,7 @@ window.__reviewRejectReport   = id => { closeReportDetail(); promptAction('rejec
 
 // ── Group user management (group leaders only) ────────────────────────────────
 let allGroupUsers = [];
+let assignLeaderRoleId = null;
 
 async function loadGroupUsers() {
   allGroupUsers = await api('GET', '/api/users') || [];
@@ -413,8 +414,17 @@ function renderGroupUsers(users) {
       <td style="font-size:0.82rem;">${u.role_title ? escHtml(u.role_title) : '—'}</td>
       <td>
         <div class="flex gap-2">
-          ${u.editable ? `<button class="btn btn-sm btn-secondary" onclick="openGmModal(${u.person_id})">✏️ Edit</button>` : '<span class="text-muted text-sm">view only</span>'}
-          ${u.editable && u.level === 'member' ? `<button class="btn btn-sm btn-danger" onclick="confirmDeleteMember(${u.person_id}, '${escHtml(displayName)}')">🗑️</button>` : ''}
+          ${!u.editable
+            ? '<span class="text-muted text-sm">view only</span>'
+            : u.level !== 'member'
+              ? (!u.person_id
+                  ? `<button class="btn btn-sm btn-primary" onclick="openAssignLeaderModal(${u.id})">Assign</button>`
+                  : `<button class="btn btn-sm btn-secondary" onclick="openGmModal(${u.person_id})">✏️ Edit</button>
+                     <button class="btn btn-sm btn-danger" onclick="confirmRemoveLeader(${u.id}, ${u.person_id})">Remove</button>`
+                )
+              : `<button class="btn btn-sm btn-secondary" onclick="openGmModal(${u.person_id})">✏️ Edit</button>
+                 <button class="btn btn-sm btn-danger" onclick="confirmDeleteMember(${u.person_id}, '${escHtml(displayName)}')">🗑️</button>`
+          }
         </div>
       </td>
     </tr>`;
@@ -506,6 +516,96 @@ async function saveGmUser() {
     allGroupUsers = await api('GET', '/api/users') || [];
     renderGroupUsers(allGroupUsers);
   } else { toast(res?.error || 'Failed.', 'danger'); }
+}
+
+function openAddLeaderModal() {
+  ['addl-name','addl-email','addl-password','addl-role-title'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.value = '';
+  });
+  document.getElementById('addl-level').value = 'group';
+  document.getElementById('addl-color').value = '';
+  document.getElementById('addl-alert').innerHTML = '';
+  document.getElementById('addl-modal').classList.add('open');
+}
+
+function closeAddLeaderModal() { document.getElementById('addl-modal').classList.remove('open'); }
+
+async function saveNewLeader() {
+  const name      = document.getElementById('addl-name').value.trim();
+  const email     = document.getElementById('addl-email').value.trim();
+  const password  = document.getElementById('addl-password').value;
+  const level     = document.getElementById('addl-level').value;
+  const color     = document.getElementById('addl-color').value || null;
+  const roleTitle = document.getElementById('addl-role-title').value.trim() || null;
+  const alertEl   = document.getElementById('addl-alert');
+  if (!name || !email || !password) {
+    alertEl.innerHTML = '<div class="alert alert-danger"><span class="alert-icon">❌</span> Name, email, and password are required.</div>';
+    return;
+  }
+  const res = await api('POST', '/api/users', { name, email, password, level, color, role_title: roleTitle, dashboard: 'leader' });
+  if (res && res.id) {
+    toast('Leader added.', 'success');
+    closeAddLeaderModal();
+    allGroupUsers = await api('GET', '/api/users') || [];
+    renderGroupUsers(allGroupUsers);
+  } else {
+    alertEl.innerHTML = `<div class="alert alert-danger"><span class="alert-icon">❌</span> ${escHtml(res?.error || 'Failed.')}</div>`;
+  }
+}
+
+function openAssignLeaderModal(roleId) {
+  const slot = allGroupUsers.find(x => x.id === roleId);
+  const roleName = slot ? (slot.role_title || slot.name) : 'Leader Slot';
+  assignLeaderRoleId = roleId;
+  document.getElementById('al-role-name').textContent = roleName;
+  document.getElementById('al-email').value    = '';
+  document.getElementById('al-name').value     = '';
+  document.getElementById('al-password').value = '';
+  document.getElementById('al-alert').innerHTML = '';
+  document.getElementById('al-modal').classList.add('open');
+}
+
+function closeAssignLeaderModal() {
+  document.getElementById('al-modal').classList.remove('open');
+  assignLeaderRoleId = null;
+}
+
+async function saveAssignLeader() {
+  const email    = document.getElementById('al-email').value.trim();
+  const name     = document.getElementById('al-name').value.trim();
+  const password = document.getElementById('al-password').value;
+  const alertEl  = document.getElementById('al-alert');
+  if (!email) {
+    alertEl.innerHTML = '<div class="alert alert-danger"><span class="alert-icon">❌</span> Email is required.</div>';
+    return;
+  }
+  const body = { email };
+  if (name)     body.name     = name;
+  if (password) body.password = password;
+  const res = await api('POST', `/api/admin/roles/${assignLeaderRoleId}/assign`, body);
+  if (res && !res.error) {
+    toast('Leader assigned.', 'success');
+    closeAssignLeaderModal();
+    allGroupUsers = await api('GET', '/api/users') || [];
+    renderGroupUsers(allGroupUsers);
+  } else {
+    alertEl.innerHTML = `<div class="alert alert-danger"><span class="alert-icon">❌</span> ${escHtml(res?.error || 'Failed to assign.')}</div>`;
+  }
+}
+
+async function confirmRemoveLeader(roleId, personId) {
+  const slot = allGroupUsers.find(x => x.id === roleId);
+  const name = slot ? (slot.person_name || slot.name) : 'this person';
+  if (!confirm(`Remove "${name}" from this leader slot?`)) return;
+  const res = await api('DELETE', `/api/admin/roles/${roleId}/persons/${personId}`);
+  if (res && res.message) {
+    toast('Leader removed.', 'success');
+    allGroupUsers = await api('GET', '/api/users') || [];
+    renderGroupUsers(allGroupUsers);
+  } else {
+    toast(res?.error || 'Failed to remove.', 'danger');
+  }
 }
 
 // ── Content send ─────────────────────────────────────────────────────────────
@@ -610,6 +710,8 @@ function showGroupTab(tab, btn) {
   document.getElementById('section-subtitle').textContent = t[1];
   const addBtn = document.getElementById('add-member-btn');
   if (addBtn) addBtn.style.display = tab === 'members' ? '' : 'none';
+  const addLeaderBtn = document.getElementById('add-leader-btn');
+  if (addLeaderBtn) addLeaderBtn.style.display = tab === 'leaders' ? '' : 'none';
   renderGroupUsers(allGroupUsers);
 }
 

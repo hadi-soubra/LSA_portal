@@ -645,15 +645,27 @@ def create_user():
 
     data = request.get_json() or {}
 
-    # ── Group-leader path: can only add member-level users to their own group ──
+    # ── Group-leader path ────────────────────────────────────────────────────────
     if is_group_lvl:
         for field in ('name', 'email', 'password'):
             if not data.get(field):
                 return jsonify({'error': f'{field} is required'}), 400
 
-        new_color = data.get('color') or None
-        if actor['color'] and new_color and actor['color'] != new_color:
-            return jsonify({'error': 'Color silo violation'}), 403
+        target_dashboard = data.get('dashboard', 'member')
+
+        if target_dashboard == 'leader':
+            # Only no-color group leaders may create new leader slots
+            if actor['color']:
+                return jsonify({'error': 'Forbidden'}), 403
+            target_level = data.get('level', 'group')
+            if target_level not in ('group', 'group_admin'):
+                return jsonify({'error': 'Leader level must be "group" or "group_admin"'}), 400
+            new_color = data.get('color') or None
+        else:
+            target_level = 'member'
+            new_color = data.get('color') or None
+            if actor['color'] and new_color and actor['color'] != new_color:
+                return jsonify({'error': 'Color silo violation'}), 403
 
         db = get_db()
         email = data['email'].strip().lower()
@@ -669,7 +681,7 @@ def create_user():
                 '''INSERT INTO users
                    (name,username,password_hash,dashboard,color,level,role_title,group_id,district_id,is_functional)
                    VALUES (?,?,?,?,?,?,?,?,?,?)''',
-                (data['name'], username, pw_hash, 'member', new_color, 'member',
+                (data['name'], username, pw_hash, target_dashboard, new_color, target_level,
                  data.get('role_title'), actor['group_id'], actor['district_id'], 0))
             role_id = db.execute('SELECT last_insert_rowid()').fetchone()[0]
 
